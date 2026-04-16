@@ -1,0 +1,22 @@
+name: mysql
+config_catalog: migration_catalog
+config_schema: config_schema
+config_table: config_table_mysql
+logging_catalog: migration_catalog
+logging_schema: logging
+log_table: migration_log_mysql
+job_logs_table: job_logs_mysql
+validation_catalog: migration_catalog
+validation_schema: validation_schema
+validation_table: validation_log_mysql
+secrets_scope: AutoDbx
+jdbc_driver: com.mysql.cj.jdbc.Driver
+data_quality_catalog: migration_catalog
+data_quality_schema: dataquality_schema
+data_quality_table: data_quality_log_mysql
+
+secrets:
+  host: mysql_host
+  port: mysql_port
+  user: mysql_user
+  password: mysql_password

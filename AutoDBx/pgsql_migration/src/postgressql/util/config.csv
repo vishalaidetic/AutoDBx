@@ -1,0 +1,11 @@
+source,Source_Schema,Source_table,Target_Table_Catalog,Target_table_schema,Target_table_name,load_type,load_type_col_name,key_column,Optimize,PartitionBy,ClusterBy,Z-Order,last_load_time
+postgresql,demo,customers,migration_catalog,pg_sql_migration,customers,full,,,,,,,
+postgresql,demo,orders,migration_catalog,pg_sql_migration,orders,incremental,last_updated,order_id,,,,,
+postgresql,demo,products,migration_catalog,pg_sql_migration,products,full,,,,,,,
+postgresql,demo,employees,migration_catalog,pg_sql_migration,employees,full,,,,,,,
+postgresql,demo,inventory,migration_catalog,pg_sql_migration,inventory,full,,,,,,,
+postgresql,demo,departments,migration_catalog,pg_sql_migration,departments,full,,,,,,,
+postgresql,demo,salaries,migration_catalog,pg_sql_migration,salaries,full,,,,,,,
+postgresql,demo,projects,migration_catalog,pg_sql_migration,projects,full,,,,,,,
+postgresql,demo,attendance,migration_catalog,pg_sql_migration,attendance,full,,,,,,,
+postgresql,demo,feedback,migration_catalog,pg_sql_migration,feedback,full,,,,,,,

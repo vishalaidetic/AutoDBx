@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: auto_dbx_proj
+Version: 0.0.1+20250602.54722
+Summary: wheel file based on auto_dbx_proj/src
+Home-page: https://databricks.com
+Author: praveen.yadav@aidetic.in
+Requires-Dist: setuptools
+Dynamic: author
+Dynamic: home-page
+Dynamic: requires-dist
+Dynamic: summary

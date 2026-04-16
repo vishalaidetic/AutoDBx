@@ -1,0 +1,3 @@
+source,Source_Schema,Source_table,Target_Table_Catalog,Target_table_schema,Target_table_name,load_type,load_type_col_name,key_column,Optimize,PartitionBy,ClusterBy,Z-Order,last_load_time
+bigquery,autodbxbq.autodbx_test_sample_dataset,clickstream_data,migration_catalog,bigquery_migration,autodbx_bq,full,NULL,NULL,True,date_col,geography_col,NULL
+bigquery,autodbxbq.autodbx_test_sample_dataset,clickstream_data,migration_catalog,bigquery_migration,autodbx_bq,incremental,timestamp,event_id,,,,,2023-01-03T19:01:00.000+00:00

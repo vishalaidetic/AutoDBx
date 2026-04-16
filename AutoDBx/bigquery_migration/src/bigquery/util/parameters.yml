@@ -1,0 +1,17 @@
+name: bigquery
+config_catalog: migration_catalog
+config_schema: config_schema
+config_table: config_table_bigquery
+logging_catalog: migration_catalog
+logging_schema: logging
+log_table: migration_log_bigquery
+job_logs_table: job_logs_bigquery
+validation_catalog: migration_catalog
+validation_schema: validation_schema
+validation_table: validation_log_bigquery
+secrets_scope: AutoDbx
+data_quality_catalog: migration_catalog
+data_quality_schema: dataquality_schema
+data_quality_table: data_quality_log_bigquery
+project: autodbxbq
+parentProject: autodbxbq

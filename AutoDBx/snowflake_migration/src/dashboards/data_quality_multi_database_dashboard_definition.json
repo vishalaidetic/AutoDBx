@@ -1,0 +1,1621 @@
+{
+  "datasets": [
+    {
+      "name": "database_type_options",
+      "displayName": "database_type_options",
+      "queryLines": [
+        "SELECT explode(array('mysql', 'redshift', 'postgres_sql','bigquery','mssql', 'snowflake')) as database_type_option"
+      ]
+    },
+    {
+      "name": "data_quality_summary",
+      "displayName": "data_quality_summary",
+      "queryLines": [
+        "SELECT\n",
+        "  COUNT(*) as total_quality_checks,\n",
+        "  COUNT(DISTINCT catalog_name) as unique_catalogs,\n",
+        "  COUNT(DISTINCT schema_name) as unique_schemas,\n",
+        "  COUNT(DISTINCT table_name) as unique_tables,\n",
+        "  SUM(CASE WHEN overall_result = 'PASSED' THEN 1 ELSE 0 END) as success_count,\n",
+        "  SUM(CASE WHEN overall_result = 'FAILED' THEN 1 ELSE 0 END) as failure_count,\n",
+        "  AVG(CASE WHEN completeness IS NOT NULL AND completeness != '' THEN TRY_CAST(completeness AS DOUBLE) ELSE NULL END) as avg_completeness,\n",
+        "  AVG(CASE WHEN validity IS NOT NULL AND validity != '' THEN TRY_CAST(validity AS DOUBLE) ELSE NULL END) as avg_validity,\n",
+        "  AVG(CASE WHEN consistency IS NOT NULL AND consistency != '' THEN TRY_CAST(consistency AS DOUBLE) ELSE NULL END) as avg_consistency,\n",
+        "  AVG(CASE WHEN uniqueness IS NOT NULL AND uniqueness != '' THEN TRY_CAST(uniqueness AS DOUBLE) ELSE NULL END) as avg_uniqueness,\n",
+        "  AVG(CASE WHEN accuracy IS NOT NULL AND accuracy != '' THEN TRY_CAST(accuracy AS DOUBLE) ELSE NULL END) as avg_accuracy,\n",
+        "  AVG(CASE WHEN timeliness IS NOT NULL AND timeliness != '' THEN TRY_CAST(timeliness AS DOUBLE) ELSE NULL END) as avg_timeliness,\n",
+        "  AVG(CASE WHEN integrity IS NOT NULL AND integrity != '' THEN TRY_CAST(integrity AS DOUBLE) ELSE NULL END) as avg_integrity\n",
+        "FROM (\n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "quality_metrics_trends",
+      "displayName": "quality_metrics_trends",
+      "queryLines": [
+        "SELECT\n",
+        "  DATE(current_timestamp) as quality_date,\n",
+        "  'Completeness' as metric_type,\n",
+        "  AVG(CASE WHEN completeness = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as metric_value\n",
+        "FROM (\n",
+        "  SELECT current_timestamp, completeness FROM migration_catalog.dataquality_schema.data_quality_log_mysql \n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT current_timestamp, completeness FROM migration_catalog.dataquality_schema.data_quality_log_redshift \n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT current_timestamp, completeness FROM migration_catalog.dataquality_schema.data_quality_log_pgsql \n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, completeness FROM migration_catalog.dataquality_schema.data_quality_log_bigquery \n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, completeness FROM migration_catalog.dataquality_schema.data_quality_log_mssql \n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT current_timestamp, completeness FROM migration_catalog.dataquality_schema.data_quality_log_snowflake \n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        ") completeness_data\n",
+        "GROUP BY DATE(current_timestamp)\n",
+        "\n",
+        "UNION ALL\n",
+        "\n",
+        "SELECT\n",
+        "  DATE(current_timestamp) as quality_date,\n",
+        "  'Validity' as metric_type,\n",
+        "  AVG(CASE WHEN validity = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as metric_value\n",
+        "FROM (\n",
+        "  SELECT current_timestamp, validity FROM migration_catalog.dataquality_schema.data_quality_log_mysql \n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT current_timestamp, validity FROM migration_catalog.dataquality_schema.data_quality_log_redshift \n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT current_timestamp, validity FROM migration_catalog.dataquality_schema.data_quality_log_pgsql \n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, validity FROM migration_catalog.dataquality_schema.data_quality_log_bigquery \n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, validity FROM migration_catalog.dataquality_schema.data_quality_log_mssql \n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, validity FROM migration_catalog.dataquality_schema.data_quality_log_snowflake \n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        ") validity_data\n",
+        "GROUP BY DATE(current_timestamp)\n",
+        "\n",
+        "UNION ALL\n",
+        "\n",
+        "SELECT\n",
+        "  DATE(current_timestamp) as quality_date,\n",
+        "  'Consistency' as metric_type,\n",
+        "  AVG(CASE WHEN consistency = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as metric_value\n",
+        "FROM (\n",
+        "  SELECT current_timestamp, consistency FROM migration_catalog.dataquality_schema.data_quality_log_mysql \n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT current_timestamp, consistency FROM migration_catalog.dataquality_schema.data_quality_log_redshift \n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT current_timestamp, consistency FROM migration_catalog.dataquality_schema.data_quality_log_pgsql \n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, consistency FROM migration_catalog.dataquality_schema.data_quality_log_bigquery \n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, consistency FROM migration_catalog.dataquality_schema.data_quality_log_mssql \n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, consistency FROM migration_catalog.dataquality_schema.data_quality_log_snowflake \n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        ") consistency_data\n",
+        "GROUP BY DATE(current_timestamp)\n",
+        "\n",
+        "UNION ALL\n",
+        "\n",
+        "SELECT\n",
+        "  DATE(current_timestamp) as quality_date,\n",
+        "  'Uniqueness' as metric_type,\n",
+        "  AVG(CASE WHEN uniqueness = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as metric_value\n",
+        "FROM (\n",
+        "  SELECT current_timestamp, uniqueness FROM migration_catalog.dataquality_schema.data_quality_log_mysql \n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT current_timestamp, uniqueness FROM migration_catalog.dataquality_schema.data_quality_log_redshift \n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT current_timestamp, uniqueness FROM migration_catalog.dataquality_schema.data_quality_log_pgsql \n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, uniqueness FROM migration_catalog.dataquality_schema.data_quality_log_bigquery \n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, uniqueness FROM migration_catalog.dataquality_schema.data_quality_log_mssql \n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT current_timestamp, uniqueness FROM migration_catalog.dataquality_schema.data_quality_log_snowflake \n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        ") uniqueness_data\n",
+        "GROUP BY DATE(current_timestamp)\n",
+        "ORDER BY quality_date, metric_type"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "data_quality_details",
+      "displayName": "data_quality_details",
+      "queryLines": [
+        "SELECT\n",
+        "    catalog_name,\n",
+        "    schema_name,\n",
+        "    table_name,\n",
+        "    layer_name,\n",
+        "    completeness,\n",
+        "    validity,\n",
+        "    consistency,\n",
+        "    uniqueness,\n",
+        "    accuracy,\n",
+        "    timeliness,\n",
+        "    integrity,\n",
+        "    overall_result,\n",
+        "    current_timestamp\n",
+        "FROM (\n",
+        "    SELECT \n",
+        "        catalog_name, schema_name, table_name, layer_name, completeness, validity, consistency, \n",
+        "        uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "    FROM migration_catalog.dataquality_schema.data_quality_log_mysql\n",
+        "    WHERE array_contains(:param_database_type, 'mysql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_catalog_filter = 'ALL' OR catalog_name = :param_catalog_filter)\n",
+        "    AND (:param_schema_filter = 'ALL' OR schema_name = :param_schema_filter)\n",
+        "    \n",
+        "    UNION ALL\n",
+        "    \n",
+        "    SELECT \n",
+        "        catalog_name, schema_name, table_name, layer_name, completeness, validity, consistency, \n",
+        "        uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "    FROM migration_catalog.dataquality_schema.data_quality_log_redshift\n",
+        "    WHERE array_contains(:param_database_type, 'redshift') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_catalog_filter = 'ALL' OR catalog_name = :param_catalog_filter)\n",
+        "    AND (:param_schema_filter = 'ALL' OR schema_name = :param_schema_filter)\n",
+        "    \n",
+        "    UNION ALL\n",
+        "    \n",
+        "    SELECT \n",
+        "        catalog_name, schema_name, table_name, layer_name, completeness, validity, consistency, \n",
+        "        uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "    FROM migration_catalog.dataquality_schema.data_quality_log_pgsql\n",
+        "    WHERE array_contains(:param_database_type, 'postgres_sql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_catalog_filter = 'ALL' OR catalog_name = :param_catalog_filter)\n",
+        "    AND (:param_schema_filter = 'ALL' OR schema_name = :param_schema_filter)\n",
+        "    \n",
+        "    UNION ALL\n",
+        "    \n",
+        "    SELECT \n",
+        "        catalog_name, schema_name, table_name, layer_name, completeness, validity, consistency, \n",
+        "        uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "    FROM migration_catalog.dataquality_schema.data_quality_log_bigquery\n",
+        "    WHERE array_contains(:param_database_type, 'bigquery') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_catalog_filter = 'ALL' OR catalog_name = :param_catalog_filter)\n",
+        "    AND (:param_schema_filter = 'ALL' OR schema_name = :param_schema_filter)\n",
+        "    \n",
+        "    UNION ALL\n",
+        "    \n",
+        "    SELECT \n",
+        "        catalog_name, schema_name, table_name, layer_name, completeness, validity, consistency, \n",
+        "        uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "    FROM migration_catalog.dataquality_schema.data_quality_log_mssql\n",
+        "    WHERE array_contains(:param_database_type, 'mssql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_catalog_filter = 'ALL' OR catalog_name = :param_catalog_filter)\n",
+        "    AND (:param_schema_filter = 'ALL' OR schema_name = :param_schema_filter)\n",
+        "    \n",
+        "    UNION ALL\n",
+        "    \n",
+        "    SELECT \n",
+        "        catalog_name, schema_name, table_name, layer_name, completeness, validity, consistency, \n",
+        "        uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "    FROM migration_catalog.dataquality_schema.data_quality_log_snowflake\n",
+        "    WHERE array_contains(:param_database_type, 'snowflake') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_catalog_filter = 'ALL' OR catalog_name = :param_catalog_filter)\n",
+        "    AND (:param_schema_filter = 'ALL' OR schema_name = :param_schema_filter)\n",
+        ") combined_data\n",
+        "ORDER BY current_timestamp DESC"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now/M"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "2025-07-29T21:08:24.000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_catalog_filter",
+          "keyword": "param_catalog_filter",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "ALL"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_schema_filter",
+          "keyword": "param_schema_filter",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "ALL"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "table_quality_performance",
+      "displayName": "table_quality_performance",
+      "queryLines": [
+        "SELECT\n",
+        "  CONCAT(catalog_name, '.', schema_name, '.', table_name) as full_table_name,\n",
+        "  COUNT(*) as total_checks,\n",
+        "  AVG(CASE WHEN completeness = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as avg_completeness,\n",
+        "  AVG(CASE WHEN validity = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as avg_validity,\n",
+        "  AVG(CASE WHEN consistency = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as avg_consistency,\n",
+        "  AVG(CASE WHEN uniqueness = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as avg_uniqueness,\n",
+        "  AVG(CASE WHEN accuracy = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as avg_accuracy,\n",
+        "  AVG(CASE WHEN timeliness = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as avg_timeliness,\n",
+        "  AVG(CASE WHEN integrity = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 as avg_integrity,\n",
+        "  MIN(overall_result) as min_overall_result,\n",
+        "  MAX(overall_result) as max_overall_result\n",
+        "FROM (\n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_mysql \n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_redshift \n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_pgsql \n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_bigquery \n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_mssql \n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    catalog_name, schema_name, table_name, completeness, validity, consistency, \n",
+        "    uniqueness, accuracy, timeliness, integrity, overall_result, current_timestamp\n",
+        "  FROM migration_catalog.dataquality_schema.data_quality_log_snowflake \n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND current_timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " ) combined_data\n",
+        "GROUP BY catalog_name, schema_name, table_name\n",
+        "ORDER BY total_checks DESC"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "catalog_filter_options",
+      "displayName": "catalog_filter_options",
+      "queryLines": [
+        "SELECT 'ALL' as catalog_option\n",
+        "UNION ALL\n",
+        "SELECT DISTINCT catalog_name as catalog_option\n",
+        "FROM (\n",
+        "  SELECT catalog_name FROM migration_catalog.dataquality_schema.data_quality_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND catalog_name IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT catalog_name FROM migration_catalog.dataquality_schema.data_quality_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND catalog_name IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT catalog_name FROM migration_catalog.dataquality_schema.data_quality_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND catalog_name IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT catalog_name FROM migration_catalog.dataquality_schema.data_quality_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND catalog_name IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT catalog_name FROM migration_catalog.dataquality_schema.data_quality_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND catalog_name IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT catalog_name FROM migration_catalog.dataquality_schema.data_quality_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND catalog_name IS NOT NULL\n",
+        ") combined_catalogs"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "schema_filter_options",
+      "displayName": "schema_filter_options",
+      "queryLines": [
+        "SELECT 'ALL' as schema_option\n",
+        "UNION ALL\n",
+        "SELECT DISTINCT schema_name as schema_option\n",
+        "FROM (\n",
+        "  SELECT schema_name FROM migration_catalog.dataquality_schema.data_quality_log_mysql\n",
+        "  WHERE :param_database_type = 'mysql' AND schema_name IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT schema_name FROM migration_catalog.dataquality_schema.data_quality_log_redshift\n",
+        "  WHERE :param_database_type = 'redshift' AND schema_name IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT schema_name FROM migration_catalog.dataquality_schema.data_quality_log_pgsql\n",
+        "  WHERE :param_database_type = 'postgres_sql' AND schema_name IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT schema_name FROM migration_catalog.dataquality_schema.data_quality_log_bigquery\n",
+        "  WHERE :param_database_type = 'bigquery' AND schema_name IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT schema_name FROM migration_catalog.dataquality_schema.data_quality_log_mssql\n",
+        "  WHERE :param_database_type = 'mssql' AND schema_name IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT schema_name FROM migration_catalog.dataquality_schema.data_quality_log_snowflake\n",
+        "  WHERE :param_database_type = 'snowflake' AND schema_name IS NOT NULL\n",
+        ") combined_schemas"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "data_quality_page",
+      "displayName": "Multi-Database Data Quality Analysis",
+      "layout": [
+        {
+          "widget": {
+            "name": "databaseTypeFilter",
+            "queries": [
+              {
+                "name": "dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f310d9a5708e8950587f8f_database_type_option",
+                "query": {
+                  "datasetName": "database_type_options",
+                  "fields": [
+                    {
+                      "name": "database_type_option",
+                      "expression": "`database_type_option`"
+                    },
+                    {
+                      "name": "database_type_option_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f3112abd3f13bffab382b1_param_database_type",
+                "query": {
+                  "datasetName": "data_quality_summary",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f31149ab21ef9a675764e4_param_database_type",
+                "query": {
+                  "datasetName": "quality_metrics_trends",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f31163b199c95d8580948e_param_database_type",
+                "query": {
+                  "datasetName": "data_quality_details",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f3117f91c5dd09a30d60bc_param_database_type",
+                "query": {
+                  "datasetName": "table_quality_performance",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f31196acdebe21743ef75a_param_database_type",
+                "query": {
+                  "datasetName": "catalog_filter_options",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f311ab83115d41066de78a_param_database_type",
+                "query": {
+                  "datasetName": "schema_filter_options",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "database_type_option",
+                    "displayName": "database_type_option",
+                    "queryName": "dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f310d9a5708e8950587f8f_database_type_option"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f3112abd3f13bffab382b1_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f31149ab21ef9a675764e4_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f31163b199c95d8580948e_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f3117f91c5dd09a30d60bc_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f31196acdebe21743ef75a_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5f21c4d84d2e0399737c39b/datasets/01f06b9ae5f311ab83115d41066de78a_param_database_type"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Database Type"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "globalStartDate",
+            "queries": [
+              {
+                "name": "globalStartDatedata_quality_summary",
+                "query": {
+                  "datasetName": "data_quality_summary",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalStartDatequality_metrics_trends",
+                "query": {
+                  "datasetName": "quality_metrics_trends",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalStartDatedata_quality_details",
+                "query": {
+                  "datasetName": "data_quality_details",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalStartDatetable_quality_performance",
+                "query": {
+                  "datasetName": "table_quality_performance",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatedata_quality_summary"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatequality_metrics_trends"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatedata_quality_details"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatetable_quality_performance"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Start Date"
+              },
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "globalEndDate",
+            "queries": [
+              {
+                "name": "globalEndDatedata_quality_summary",
+                "query": {
+                  "datasetName": "data_quality_summary",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalEndDatequality_metrics_trends",
+                "query": {
+                  "datasetName": "quality_metrics_trends",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalEndDatedata_quality_details",
+                "query": {
+                  "datasetName": "data_quality_details",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalEndDatetable_quality_performance",
+                "query": {
+                  "datasetName": "table_quality_performance",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatedata_quality_summary"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatequality_metrics_trends"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatedata_quality_details"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatetable_quality_performance"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "End Date"
+              },
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "qualitySummaryCards",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "data_quality_summary",
+                  "fields": [
+                    {
+                      "name": "total_quality_checks",
+                      "expression": "`total_quality_checks`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Total Quality Checks",
+                  "fieldName": "total_quality_checks"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Quality Checks"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "successCountWidget",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "data_quality_summary",
+                  "fields": [
+                    {
+                      "name": "success_count",
+                      "expression": "`success_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Success Count",
+                  "fieldName": "success_count"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Success Count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "failureCountWidget",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "data_quality_summary",
+                  "fields": [
+                    {
+                      "name": "failure_count",
+                      "expression": "`failure_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Failure Count",
+                  "fieldName": "failure_count"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Failure Count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "qualityMetricsTrends",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "quality_metrics_trends",
+                  "fields": [
+                    {
+                      "name": "quality_date",
+                      "expression": "`quality_date`"
+                    },
+                    {
+                      "name": "metric_type",
+                      "expression": "`metric_type`"
+                    },
+                    {
+                      "name": "metric_value",
+                      "expression": "`metric_value`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "axis": {
+                    "hideTitle": true
+                  },
+                  "displayName": "Date",
+                  "fieldName": "quality_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "axis": {
+                    "title": "Quality Score"
+                  },
+                  "displayName": "Score",
+                  "fieldName": "metric_value",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "displayName": "Metric",
+                  "fieldName": "metric_type",
+                  "legend": {
+                    "position": "right",
+                    "title": "Quality Metric"
+                  },
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#28a745",
+                        "value": "Completeness"
+                      },
+                      {
+                        "color": "#007bff",
+                        "value": "Validity"
+                      },
+                      {
+                        "color": "#ffc107",
+                        "value": "Consistency"
+                      },
+                      {
+                        "color": "#17a2b8",
+                        "value": "Uniqueness"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                }
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "tableQualityPerformance",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "table_quality_performance",
+                  "fields": [
+                    {
+                      "name": "full_table_name",
+                      "expression": "`full_table_name`"
+                    },
+                    {
+                      "name": "avg_completeness",
+                      "expression": "`avg_completeness`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Table",
+                  "fieldName": "full_table_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "axis": {
+                    "title": "Average Completeness Score"
+                  },
+                  "displayName": "Completeness",
+                  "fieldName": "avg_completeness",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "dataQualityDetailsTable",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "data_quality_details",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "layer_name",
+                      "expression": "`layer_name`"
+                    },
+                    {
+                      "name": "completeness",
+                      "expression": "`completeness`"
+                    },
+                    {
+                      "name": "validity",
+                      "expression": "`validity`"
+                    },
+                    {
+                      "name": "consistency",
+                      "expression": "`consistency`"
+                    },
+                    {
+                      "name": "uniqueness",
+                      "expression": "`uniqueness`"
+                    },
+                    {
+                      "name": "accuracy",
+                      "expression": "`accuracy`"
+                    },
+                    {
+                      "name": "timeliness",
+                      "expression": "`timeliness`"
+                    },
+                    {
+                      "name": "integrity",
+                      "expression": "`integrity`"
+                    },
+                    {
+                      "name": "overall_result",
+                      "expression": "`overall_result`"
+                    },
+                    {
+                      "name": "current_timestamp",
+                      "expression": "`current_timestamp`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "allowHTMLByDefault": false,
+              "condensed": false,
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "catalog_name",
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Catalog",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "catalog_name",
+                    "order": 10000,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Schema",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "schema_name",
+                    "order": 10001,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Table",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "table_name",
+                    "order": 10002,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "layer_name",
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Layer",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "layer_name",
+                    "order": 10003,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "completeness",
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Completeness",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "completeness",
+                    "order": 10004,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "validity",
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Validity",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "validity",
+                    "order": 10005,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "consistency",
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Consistency",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "consistency",
+                    "order": 10006,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "uniqueness",
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Uniqueness",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "uniqueness",
+                    "order": 10007,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "accuracy",
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Accuracy",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "accuracy",
+                    "order": 10008,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "timeliness",
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Timeliness",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "timeliness",
+                    "order": 10009,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "integrity",
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Integrity",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "integrity",
+                    "order": 10010,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "overall_result",
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Overall Result",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "overall_result",
+                    "order": 10011,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "current_timestamp",
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Timestamp",
+                    "type": "datetime",
+                    "visible": true,
+                    "displayName": "current_timestamp",
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm:ss",
+                    "order": 10012,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "displayAs": "string"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Data Quality Details"
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 15,
+              "paginationSize": "default",
+              "version": 1,
+              "widgetType": "table",
+              "withRowNumber": false
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 6,
+            "height": 10
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ]
+}

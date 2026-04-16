@@ -1,0 +1,23 @@
+name: sqlserver
+config_catalog: migration_catalog
+config_schema: config_schema
+config_table: config_table_mssql
+logging_catalog: migration_catalog
+logging_schema: logging
+log_table: migration_log_mssql
+job_logs_table: job_logs_mssql
+validation_catalog: migration_catalog
+validation_schema: validation_schema
+validation_table: validation_log_mssql
+secrets_scope: AutoDbx
+jdbc_driver: com.microsoft.sqlserver.jdbc.SQLServerDriver
+data_quality_catalog: migration_catalog
+data_quality_schema: dataquality_schema
+data_quality_table: data_quality_log_mssql
+
+secrets:
+  host: mssql_host
+  port: mssql_port
+  user: mssql_user
+  password: mssql_password
+  hostNameInCertificate: hostNameInCertificate

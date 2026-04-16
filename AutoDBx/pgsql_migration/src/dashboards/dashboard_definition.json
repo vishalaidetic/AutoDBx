@@ -1,0 +1,304 @@
+{
+  "datasets": [
+    {
+      "name": "static_text",
+      "displayName": "static_text",
+      "query": "select\n  'Job Cost Analysis: Task Breakdown' as title_tasks,\n  'Job Cost Analysis: Top Spending Jobs' as title_top"
+    },
+    {
+      "name": "select_yes_no_task_show_details",
+      "displayName": "select_yes_no_task_show_details",
+      "query": "select explode(array(\n  'Yes',\n  'No'\n)) as toggle"
+    },
+    {
+      "name": "select_yes_no_top_show_null",
+      "displayName": "select_yes_no_top_show_null",
+      "query": "select explode(array(\n  'Yes',\n  'No'\n)) as toggle"
+    },
+    {
+      "name": "select_time_key_overview",
+      "displayName": "select_time_key_overview",
+      "query": "select explode(array(\n  'Day',\n  'Week',\n  'Month'\n)) as time_key"
+    },
+    {
+      "name": "select_time_key_task",
+      "displayName": "select_time_key_task",
+      "query": "select explode(array(\n  'Day',\n  'Week',\n  'Month'\n)) as time_key"
+    },
+    {
+      "name": "select_time_key_top",
+      "displayName": "select_time_key_top",
+      "query": "select explode(array(\n  'Day',\n  'Week',\n  'Month'\n)) as time_key"
+    },
+    {
+      "name": "select_group_key",
+      "displayName": "select_group_key",
+      "query": "select explode(array(\n  'Job Name',\n  'Task Key',\n  'Result State'\n)) as group_key"
+    },
+    {
+      "name": "select_workspace",
+      "displayName": "select_workspace",
+      "query": "with\n-- get workspaces from job data\nworkspace_data as (\n  select distinct\n    workspace_id,\n    concat('Workspace ', workspace_id) as workspace_name\n  from system.lakeflow.job_task_run_timeline\n  where period_start_time between :param_start_date and :param_end_date\n),\n-- query\nworkspace_selection as (\n  select\n    workspace_name as workspace\n  from workspace_data\n)\nselect * from workspace_selection",
+      "parameters": [
+        {"displayName": "param_start_date", "keyword": "param_start_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now-12M/M"}]}}},
+        {"displayName": "param_end_date", "keyword": "param_end_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now/d"}]}}}
+      ]
+    },
+    {
+      "name": "select_job_name",
+      "displayName": "select_job_name",
+      "query": "with\n-- get job names from job data, filtered for auto-dbx costing framework\njob_data as (\n  select distinct\n    case \n      when j.name like '%]%' then regexp_replace(j.name, '^(\\\\[[^\\\\]]*\\\\])+', '')\n      else j.name\n    end as job_name\n  from system.lakeflow.job_task_run_timeline jtrt\n  join system.lakeflow.jobs j on jtrt.job_id = j.job_id\n  where jtrt.period_start_time between :param_start_date and :param_end_date\n    and (:param_workspace='<ALL WORKSPACES>' or concat('Workspace ', jtrt.workspace_id) = :param_workspace)\n    and (lower(j.name) like '%redshift%' \n         or lower(j.name) like '%mysql%' \n         or lower(j.name) like '%snowflake%' \n         or lower(j.name) like '%bigquery%' \n         or lower(j.name) like '%postgresql%'\n         or lower(j.name) like '%auto_dbx%'\n         or lower(j.name) like '%autodbx%')\n)\nselect * from job_data",
+      "parameters": [
+        {"displayName": "param_start_date", "keyword": "param_start_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now-12M/M"}]}}},
+        {"displayName": "param_end_date", "keyword": "param_end_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now/d"}]}}},
+        {"displayName": "param_workspace", "keyword": "param_workspace", "dataType": "STRING", "defaultSelection": {"values": {"dataType": "STRING", "values": [{"value": "<ALL WORKSPACES>"}]}}}
+      ]
+    },
+    {
+      "name": "select_rank_key",
+      "displayName": "select_rank_key",
+      "query": "select explode(array(\n  'job_name',\n  'task_key',\n  'result_state',\n  'workspace_id'\n)) as rank_key",
+      "parameters": [
+        {"displayName": "param_start_date", "keyword": "param_start_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now-12M/M"}]}}},
+        {"displayName": "param_end_date", "keyword": "param_end_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now/d"}]}}},
+        {"displayName": "param_workspace", "keyword": "param_workspace", "dataType": "STRING", "defaultSelection": {"values": {"dataType": "STRING", "values": [{"value": "<ALL WORKSPACES>"}]}}}
+      ]
+    },
+    {
+      "name": "job_cost_total",
+      "displayName": "job_cost_total",
+      "query": "with\n-- get job cost data with pricing\njob_cost_data as (\n  select\n    coalesce(jtrt.workspace_id, 0) as workspace_id,\n    j.name as job_name,\n    jtrt.task_key,\n    jtrt.period_start_time,\n    jtrt.period_end_time,\n    jtrt.result_state,\n    datediff(minute, jtrt.period_start_time, jtrt.period_end_time) as duration_minutes,\n    coalesce(u.usage_quantity * lp.pricing.default, 0) as cost_usd,\n    date_trunc('QUARTER', jtrt.period_start_time) as cost_quarter,\n    date_trunc('MONTH', jtrt.period_start_time) as cost_month,\n    date_trunc('WEEK', jtrt.period_start_time) as cost_week\n  from system.lakeflow.job_task_run_timeline jtrt\n  join system.lakeflow.jobs j on jtrt.job_id = j.job_id\n  left join system.billing.usage u on \n    jtrt.account_id = u.account_id \n    and jtrt.workspace_id = u.workspace_id\n    and u.usage_start_time < jtrt.period_end_time\n    and u.usage_end_time > jtrt.period_start_time\n    and u.billing_origin_product = 'JOBS'\n  left join system.billing.list_prices lp on \n    u.sku_name = lp.sku_name \n    and u.usage_unit = lp.usage_unit\n    and u.usage_end_time between lp.price_start_time and coalesce(lp.price_end_time, current_date())\n  where jtrt.period_start_time between :param_start_date and :param_end_date\n    and (:param_workspace='<ALL WORKSPACES>' or concat('Workspace ', jtrt.workspace_id) = :param_workspace)\n),\n-- calc total cost\ntotal_cost as (\n  select\n    sum(cost_usd) as cost_usd\n  from job_cost_data\n)\n-- query\nselect\n  concat(\n    'Total job cost (USD): $ ',\n    case\n        when cost_usd >= 1e9 then concat(format_number(cost_usd / 1e9, 2), 'B')\n        when cost_usd >= 1e6 then concat(format_number(cost_usd / 1e6, 2), 'M')\n        when cost_usd >= 1e3 then concat(format_number(cost_usd / 1e3, 2), 'K')\n        else format_number(cost_usd, 2)\n    end\n  ) as total_job_cost_usd\nfrom total_cost",
+      "parameters": [
+        {"displayName": "param_start_date", "keyword": "param_start_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now-12M/M"}]}}},
+        {"displayName": "param_end_date", "keyword": "param_end_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now/d"}]}}},
+        {"displayName": "param_workspace", "keyword": "param_workspace", "dataType": "STRING", "defaultSelection": {"values": {"dataType": "STRING", "values": [{"value": "<ALL WORKSPACES>"}]}}}
+      ]
+    },
+    {
+      "name": "job_cost_overview",
+      "displayName": "job_cost_overview",
+      "query": "with\n-- get job cost data with pricing\njob_cost_data as (\n  select\n    coalesce(jtrt.workspace_id, 0) as workspace_id,\n    j.name as job_name,\n    jtrt.task_key,\n    jtrt.period_start_time,\n    jtrt.period_end_time,\n    jtrt.result_state,\n    datediff(minute, jtrt.period_start_time, jtrt.period_end_time) as duration_minutes,\n    coalesce(u.usage_quantity * lp.pricing.default, 0) as cost_usd,\n    date_trunc('QUARTER', jtrt.period_start_time) as cost_quarter,\n    date_trunc('MONTH', jtrt.period_start_time) as cost_month,\n    date_trunc('WEEK', jtrt.period_start_time) as cost_week\n  from system.lakeflow.job_task_run_timeline jtrt\n  join system.lakeflow.jobs j on jtrt.job_id = j.job_id\n  left join system.billing.usage u on \n    jtrt.account_id = u.account_id \n    and jtrt.workspace_id = u.workspace_id\n    and u.usage_start_time < jtrt.period_end_time\n    and u.usage_end_time > jtrt.period_start_time\n    and u.billing_origin_product = 'JOBS'\n  left join system.billing.list_prices lp on \n    u.sku_name = lp.sku_name \n    and u.usage_unit = lp.usage_unit\n    and u.usage_end_time between lp.price_start_time and coalesce(lp.price_end_time, current_date())\n  where jtrt.period_start_time between :param_start_date and :param_end_date\n    and (:param_workspace='<ALL WORKSPACES>' or concat('Workspace ', jtrt.workspace_id) = :param_workspace)\n),\n-- eval time_key param\ncost_data_with_time_key as (\n  select\n    case\n      when :param_time_key = 'Quarter' then cost_quarter\n      when :param_time_key = 'Month' then cost_month\n      when :param_time_key = 'Week' then cost_week\n      else date(period_start_time)\n    end as time_key,\n    case\n      when :param_group_key = 'Job Name' then job_name\n      when :param_group_key = 'Task Key' then task_key\n      else result_state\n    end as group_key,\n    cost_usd\n  from job_cost_data\n)\n-- query\nselect\n  time_key, group_key, cost_usd\nfrom cost_data_with_time_key",
+      "parameters": [
+        {"displayName": "param_start_date", "keyword": "param_start_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now-12M/M"}]}}},
+        {"displayName": "param_end_date", "keyword": "param_end_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now/d"}]}}},
+        {"displayName": "param_workspace", "keyword": "param_workspace", "dataType": "STRING", "defaultSelection": {"values": {"dataType": "STRING", "values": [{"value": "<ALL WORKSPACES>"}]}}},
+        {"displayName": "param_time_key", "keyword": "param_time_key", "dataType": "STRING", "defaultSelection": {"values": {"dataType": "STRING", "values": [{"value": "Week"}]}}},
+        {"displayName": "param_group_key", "keyword": "param_group_key", "dataType": "STRING", "defaultSelection": {"values": {"dataType": "STRING", "values": [{"value": "Job Name"}]}}}
+      ]
+    },
+    {
+      "name": "job_cost_details_table",
+      "displayName": "job_cost_details_table",
+      "query": "with\n-- get job cost data with pricing, filtered for auto-dbx costing framework\njob_cost_data as (\n  select\n    coalesce(jtrt.workspace_id, 0) as workspace_id,\n    case \n      when j.name like '%]%' then regexp_replace(j.name, '^(\\\\[[^\\\\]]*\\\\])+', '')\n      else j.name\n    end as job_name,\n    jtrt.task_key,\n    jtrt.period_start_time,\n    jtrt.period_end_time,\n    jtrt.result_state,\n    jtrt.job_run_id,\n    datediff(minute, jtrt.period_start_time, jtrt.period_end_time) as duration_minutes,\n    coalesce(u.usage_quantity * lp.pricing.default, 0) as cost_usd\n  from system.lakeflow.job_task_run_timeline jtrt\n  join system.lakeflow.jobs j on jtrt.job_id = j.job_id\n  left join system.billing.usage u on \n    jtrt.account_id = u.account_id \n    and jtrt.workspace_id = u.workspace_id\n    and u.usage_start_time < jtrt.period_end_time\n    and u.usage_end_time > jtrt.period_start_time\n    and u.billing_origin_product = 'JOBS'\n  left join system.billing.list_prices lp on \n    u.sku_name = lp.sku_name \n    and u.usage_unit = lp.usage_unit\n    and u.usage_end_time between lp.price_start_time and coalesce(lp.price_end_time, current_date())\n  where jtrt.period_start_time between :param_start_date and :param_end_date\n    and (:param_workspace='<ALL WORKSPACES>' or concat('Workspace ', jtrt.workspace_id) = :param_workspace)\n    and (lower(j.name) like '%redshift%' \n         or lower(j.name) like '%mysql%' \n         or lower(j.name) like '%snowflake%' \n         or lower(j.name) like '%bigquery%' \n         or lower(j.name) like '%postgresql%'\n         or lower(j.name) like '%auto_dbx%'\n         or lower(j.name) like '%autodbx%')\n)\nselect\n  job_name,\n  task_key,\n  duration_minutes,\n  sum(cost_usd) as total_task_cost,\n  case \n    when sum(duration_minutes) > 0 then sum(cost_usd) / sum(duration_minutes)\n    else 0 \n  end as cost_per_minute,\n  min(period_start_time) as period_start_time,\n  max(period_end_time) as period_end_time,\n  result_state,\n  job_run_id\nfrom job_cost_data\ngroup by job_name, task_key, duration_minutes, result_state, job_run_id\norder by period_start_time desc, job_name, task_key",
+      "parameters": [
+        {"displayName": "param_start_date", "keyword": "param_start_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now-12M/M"}]}}},
+        {"displayName": "param_end_date", "keyword": "param_end_date", "dataType": "DATE", "defaultSelection": {"values": {"dataType": "DATE", "values": [{"value": "now/d"}]}}},
+        {"displayName": "param_workspace", "keyword": "param_workspace", "dataType": "STRING", "defaultSelection": {"values": {"dataType": "STRING", "values": [{"value": "<ALL WORKSPACES>"}]}}}
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "page1",
+      "displayName": "Job Cost Analysis",
+      "layout": [
+        {
+          "widget": {
+            "name": "globalStartDate",
+            "queries": [
+              {"name": "globalStartDateselect_workspace", "query": {"datasetName": "select_workspace", "parameters": [{"name": "param_start_date", "keyword": "param_start_date"}], "disaggregated": false}},
+              {"name": "globalStartDatejob_cost_total", "query": {"datasetName": "job_cost_total", "parameters": [{"name": "param_start_date", "keyword": "param_start_date"}], "disaggregated": false}},
+              {"name": "globalStartDatejob_cost_overview", "query": {"datasetName": "job_cost_overview", "parameters": [{"name": "param_start_date", "keyword": "param_start_date"}], "disaggregated": false}},
+              {"name": "globalStartDatejob_cost_details_table", "query": {"datasetName": "job_cost_details_table", "parameters": [{"name": "param_start_date", "keyword": "param_start_date"}], "disaggregated": false}}
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {"parameterName": "param_start_date", "queryName": "globalStartDateselect_workspace"},
+                  {"parameterName": "param_start_date", "queryName": "globalStartDatejob_cost_total"},
+                  {"parameterName": "param_start_date", "queryName": "globalStartDatejob_cost_overview"},
+                  {"parameterName": "param_start_date", "queryName": "globalStartDatejob_cost_details_table"}
+                ]
+              },
+              "frame": {"showDescription": false, "showTitle": true, "title": "Start date"},
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {"x": 0, "y": 0, "width": 2, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "globalEndDate",
+            "queries": [
+              {"name": "globalEndDateselect_workspace", "query": {"datasetName": "select_workspace", "parameters": [{"name": "param_end_date", "keyword": "param_end_date"}], "disaggregated": false}},
+              {"name": "globalEndDatejob_cost_total", "query": {"datasetName": "job_cost_total", "parameters": [{"name": "param_end_date", "keyword": "param_end_date"}], "disaggregated": false}},
+              {"name": "globalEndDatejob_cost_overview", "query": {"datasetName": "job_cost_overview", "parameters": [{"name": "param_end_date", "keyword": "param_end_date"}], "disaggregated": false}},
+              {"name": "globalEndDatejob_cost_details_table", "query": {"datasetName": "job_cost_details_table", "parameters": [{"name": "param_end_date", "keyword": "param_end_date"}], "disaggregated": false}}
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {"parameterName": "param_end_date", "queryName": "globalEndDateselect_workspace"},
+                  {"parameterName": "param_end_date", "queryName": "globalEndDatejob_cost_total"},
+                  {"parameterName": "param_end_date", "queryName": "globalEndDatejob_cost_overview"},
+                  {"parameterName": "param_end_date", "queryName": "globalEndDatejob_cost_details_table"}
+                ]
+              },
+              "frame": {"showDescription": false, "showTitle": true, "title": "End date"},
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {"x": 2, "y": 0, "width": 2, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "globalWorkspaceFilter",
+            "queries": [
+              {"name": "globalWorkspaceFilterselect_workspace", "query": {"datasetName": "select_workspace", "fields": [{"name": "workspace", "expression": "`workspace`"}], "disaggregated": false}},
+              {"name": "globalWorkspaceFilterjob_cost_total", "query": {"datasetName": "job_cost_total", "parameters": [{"name": "param_workspace", "keyword": "param_workspace"}], "disaggregated": false}},
+              {"name": "globalWorkspaceFilterjob_cost_overview", "query": {"datasetName": "job_cost_overview", "parameters": [{"name": "param_workspace", "keyword": "param_workspace"}], "disaggregated": false}},
+              {"name": "globalWorkspaceFilterjob_cost_details_table", "query": {"datasetName": "job_cost_details_table", "parameters": [{"name": "param_workspace", "keyword": "param_workspace"}], "disaggregated": false}}
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {"displayName": "workspace", "fieldName": "workspace", "queryName": "globalWorkspaceFilterselect_workspace"},
+                  {"parameterName": "param_workspace", "queryName": "globalWorkspaceFilterjob_cost_total"},
+                  {"parameterName": "param_workspace", "queryName": "globalWorkspaceFilterjob_cost_overview"},
+                  {"parameterName": "param_workspace", "queryName": "globalWorkspaceFilterjob_cost_details_table"}
+                ]
+              },
+              "frame": {"showDescription": false, "showTitle": true, "title": "Workspace"},
+              "version": 2,
+              "widgetType": "filter-single-select"
+            }
+          },
+          "position": {"x": 4, "y": 0, "width": 2, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "totalJobCost",
+            "queries": [{"name": "main_query", "query": {"datasetName": "job_cost_total", "fields": [{"name": "total_job_cost_usd", "expression": "`total_job_cost_usd`"}], "disaggregated": false}}],
+            "spec": {
+              "encodings": {"target": {"displayName": "total_job_cost_usd", "fieldName": "total_job_cost_usd"}},
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {"x": 0, "y": 1, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "s1ParamTimeKey",
+            "queries": [
+              {"name": "s1ParamTimeKeyselect_time_key_overview", "query": {"datasetName": "select_time_key_overview", "fields": [{"name": "time_key", "expression": "`time_key`"}], "disaggregated": false}},
+              {"name": "s1ParamTimeKeyjob_cost_overview", "query": {"datasetName": "job_cost_overview", "parameters": [{"name": "param_time_key", "keyword": "param_time_key"}], "disaggregated": false}}
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {"displayName": "time_key", "fieldName": "time_key", "queryName": "s1ParamTimeKeyselect_time_key_overview"},
+                  {"parameterName": "param_time_key", "queryName": "s1ParamTimeKeyjob_cost_overview"}
+                ]
+              },
+              "frame": {"showDescription": false, "showTitle": true, "title": "View date by"},
+              "version": 2,
+              "widgetType": "filter-single-select"
+            }
+          },
+          "position": {"x": 0, "y": 2, "width": 3, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "s1ParamGroupKey",
+            "queries": [
+              {"name": "s1ParamGroupKeyselect_group_key", "query": {"datasetName": "select_group_key", "fields": [{"name": "group_key", "expression": "`group_key`"}], "disaggregated": false}},
+              {"name": "s1ParamGroupKeyjob_cost_overview", "query": {"datasetName": "job_cost_overview", "parameters": [{"name": "param_group_key", "keyword": "param_group_key"}], "disaggregated": false}}
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {"displayName": "group_key", "fieldName": "group_key", "queryName": "s1ParamGroupKeyselect_group_key"},
+                  {"parameterName": "param_group_key", "queryName": "s1ParamGroupKeyjob_cost_overview"}
+                ]
+              },
+              "frame": {"showDescription": false, "showTitle": true, "title": "Group by"},
+              "version": 2,
+              "widgetType": "filter-single-select"
+            }
+          },
+          "position": {"x": 3, "y": 2, "width": 3, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "group_key_cost_time_series",
+            "queries": [
+              {"name": "main_query", "query": {"datasetName": "job_cost_overview", "fields": [{"name": "group_key", "expression": "`group_key`"}, {"name": "time_key", "expression": "`time_key`"}, {"name": "sum(cost_usd)", "expression": "SUM(`cost_usd`)"}], "disaggregated": false}}
+            ],
+            "spec": {
+              "encodings": {
+                "color": {
+                  "displayName": "Key",
+                  "fieldName": "group_key",
+                  "legend": {"position": "right", "title": "Key"},
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "axis": {"hideTitle": true},
+                  "displayName": "time_key",
+                  "fieldName": "time_key",
+                  "scale": {"type": "temporal"}
+                },
+                "y": {
+                  "axis": {"title": "Cost (USD)"},
+                  "displayName": "Cost (USD)",
+                  "fieldName": "sum(cost_usd)",
+                  "scale": {"type": "quantitative"}
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {"x": 0, "y": 3, "width": 6, "height": 8}
+        },
+        {
+          "widget": {
+            "name": "job_cost_details_table_widget",
+            "queries": [
+              {"name": "main_query", "query": {"datasetName": "job_cost_details_table", "fields": [{"name": "job_name", "expression": "`job_name`"}, {"name": "task_key", "expression": "`task_key`"}, {"name": "duration_minutes", "expression": "`duration_minutes`"}, {"name": "total_task_cost", "expression": "`total_task_cost`"}, {"name": "cost_per_minute", "expression": "`cost_per_minute`"}, {"name": "period_start_time", "expression": "`period_start_time`"}, {"name": "period_end_time", "expression": "`period_end_time`"}, {"name": "result_state", "expression": "`result_state`"}], "disaggregated": true}}
+            ],
+            "spec": {
+              "allowHTMLByDefault": false,
+              "condensed": false,
+              "encodings": {
+                "columns": [
+                  {"fieldName": "job_name", "alignContent": "left", "allowHTML": false, "allowSearch": true, "title": "Job Name", "type": "string", "visible": true, "displayName": "job_name", "order": 10000, "preserveWhitespace": false, "useMonospaceFont": false, "highlightLinks": false, "booleanValues": ["false", "true"], "dateTimeFormat": "YYYY-MM-DD", "displayAs": "string", "imageHeight": "", "imageTitleTemplate": "{{ @ }}", "imageUrlTemplate": "{{ @ }}", "imageWidth": "", "linkOpenInNewTab": true, "linkTextTemplate": "{{ @ }}", "linkTitleTemplate": "{{ @ }}", "linkUrlTemplate": "{{ @ }}"},
+                  {"fieldName": "task_key", "alignContent": "left", "allowHTML": false, "allowSearch": true, "title": "Task Key", "type": "string", "visible": true, "displayName": "task_key", "order": 10001, "preserveWhitespace": false, "useMonospaceFont": false, "highlightLinks": false, "booleanValues": ["false", "true"], "dateTimeFormat": "YYYY-MM-DD", "displayAs": "string", "imageHeight": "", "imageTitleTemplate": "{{ @ }}", "imageUrlTemplate": "{{ @ }}", "imageWidth": "", "linkOpenInNewTab": true, "linkTextTemplate": "{{ @ }}", "linkTitleTemplate": "{{ @ }}", "linkUrlTemplate": "{{ @ }}"},
+                  {"fieldName": "duration_minutes", "alignContent": "right", "allowHTML": false, "allowSearch": false, "title": "Duration (Minutes)", "type": "integer", "visible": true, "displayName": "duration_minutes", "order": 10002, "preserveWhitespace": false, "useMonospaceFont": false, "highlightLinks": false, "booleanValues": ["false", "true"], "dateTimeFormat": "YYYY-MM-DD", "displayAs": "number", "numberFormat": "0"},
+                  {"fieldName": "total_task_cost", "alignContent": "right", "allowHTML": false, "allowSearch": false, "title": "Total Cost ($)", "type": "float", "visible": true, "displayName": "total_task_cost", "order": 10003, "preserveWhitespace": false, "useMonospaceFont": false, "highlightLinks": false, "booleanValues": ["false", "true"], "dateTimeFormat": "YYYY-MM-DD", "displayAs": "number", "numberFormat": "0.000000"},
+                  {"fieldName": "cost_per_minute", "alignContent": "right", "allowHTML": false, "allowSearch": false, "title": "Cost Per Minute ($)", "type": "float", "visible": true, "displayName": "cost_per_minute", "order": 10004, "preserveWhitespace": false, "useMonospaceFont": false, "highlightLinks": false, "booleanValues": ["false", "true"], "dateTimeFormat": "YYYY-MM-DD", "displayAs": "number", "numberFormat": "0.000000"},
+                  {"fieldName": "period_start_time", "alignContent": "center", "allowHTML": false, "allowSearch": false, "title": "Start Time", "type": "datetime", "visible": true, "displayName": "period_start_time", "dateTimeFormat": "YYYY-MM-DD HH:mm:ss", "order": 10005, "preserveWhitespace": false, "useMonospaceFont": false, "highlightLinks": false, "booleanValues": ["false", "true"], "displayAs": "string", "imageHeight": "", "imageTitleTemplate": "{{ @ }}", "imageUrlTemplate": "{{ @ }}", "imageWidth": "", "linkOpenInNewTab": true, "linkTextTemplate": "{{ @ }}", "linkTitleTemplate": "{{ @ }}", "linkUrlTemplate": "{{ @ }}"},
+                  {"fieldName": "period_end_time", "alignContent": "center", "allowHTML": false, "allowSearch": false, "title": "End Time", "type": "datetime", "visible": true, "displayName": "period_end_time", "dateTimeFormat": "YYYY-MM-DD HH:mm:ss", "order": 10006, "preserveWhitespace": false, "useMonospaceFont": false, "highlightLinks": false, "booleanValues": ["false", "true"], "displayAs": "string", "imageHeight": "", "imageTitleTemplate": "{{ @ }}", "imageUrlTemplate": "{{ @ }}", "imageWidth": "", "linkOpenInNewTab": true, "linkTextTemplate": "{{ @ }}", "linkTitleTemplate": "{{ @ }}", "linkUrlTemplate": "{{ @ }}"},
+                  {"fieldName": "result_state", "alignContent": "center", "allowHTML": false, "allowSearch": true, "title": "Status", "type": "string", "visible": true, "displayName": "result_state", "order": 10007, "preserveWhitespace": false, "useMonospaceFont": false, "highlightLinks": false, "booleanValues": ["false", "true"], "dateTimeFormat": "YYYY-MM-DD", "displayAs": "string", "imageHeight": "", "imageTitleTemplate": "{{ @ }}", "imageUrlTemplate": "{{ @ }}", "imageWidth": "", "linkOpenInNewTab": true, "linkTextTemplate": "{{ @ }}", "linkTitleTemplate": "{{ @ }}", "linkUrlTemplate": "{{ @ }}"}
+                ]
+              },
+              "frame": {"showDescription": false, "showTitle": true, "title": "Job Cost Details"},
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "paginationSize": "default",
+              "version": 1,
+              "widgetType": "table",
+              "withRowNumber": false
+            }
+          },
+          "position": {"x": 0, "y": 11, "width": 6, "height": 10}
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# resources/data_quality_multi_database_dashboard.yml
+resources:
+  dashboards:
+    migration_logs_multi_database_dashboard:
+      display_name: "Multi-Database Migration Logs Dashboard - Auto DBX"
+      warehouse_id: ${var.warehouse_id}
+      parent_path: "/Shared/Dashboards"
+      file_path: "../src/migration_logs_multi_database_dashboard_definition.json"

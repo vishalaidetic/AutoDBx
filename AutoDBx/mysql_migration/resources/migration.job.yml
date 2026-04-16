@@ -1,0 +1,91 @@
+# The main job for auto_dbx_proj.
+resources:
+  jobs:
+    migration_job:
+      name: "migration_job"
+
+      schedule:
+        quartz_cron_expression: 36 16 9 * * ?
+        timezone_id: UTC
+        pause_status: PAUSED
+
+      email_notifications:
+        on_start:
+          - rohan.singh@aidetic.in
+        on_success:
+          - rohan.singh@aidetic.in
+        on_failure:
+          - rohan.singh@aidetic.in
+
+      tasks:
+        - task_key: main_task
+          job_cluster_key: job_cluster
+          notebook_task:
+            notebook_path: "../src/mysql/migration.ipynb"
+          libraries:
+            - maven:
+                coordinates: mysql:mysql-connector-java:8.0.33
+
+        - task_key: validation_task
+          depends_on:
+            - task_key: main_task
+          job_cluster_key: job_cluster
+          notebook_task:
+            notebook_path: "../src/mysql/validation.ipynb"
+          libraries:
+            - maven:
+                coordinates: mysql:mysql-connector-java:8.0.33
+                
+        - task_key: data_quality_task
+          depends_on:
+            - task_key: validation_task
+          job_cluster_key: job_cluster
+          notebook_task:
+            notebook_path: "../src/mysql/data_quality.ipynb"
+            base_parameters:
+              layer_name: "bronze"
+        
+        - task_key: logging_task
+          depends_on:
+            - task_key: main_task
+            - task_key: validation_task
+            - task_key: data_quality_task
+          run_if: ALL_DONE
+          notebook_task:
+            notebook_path: "../src/mysql/loggingframework.ipynb"
+            base_parameters:
+              job_id: "{{job.id}}"
+              job_run_id: "{{job.run_id}}"
+              task_name: "{{task.name}}"
+      
+      permissions:
+        - level: CAN_VIEW
+          user_name: rohan.singh@aidetic.in
+      
+      tags:
+        user: "Madhumita"
+        team: "data-engineering"
+
+      job_clusters:
+        - job_cluster_key: job_cluster
+          new_cluster:
+            cluster_name: ""
+            spark_version: 16.4.x-scala2.12
+            spark_conf:
+              spark.master: local[*, 4]
+              spark.databricks.cluster.profile: singleNode
+            aws_attributes:
+              first_on_demand: 1
+              availability: SPOT_WITH_FALLBACK
+              zone_id: ap-south-1b
+              spot_bid_price_percent: 100
+              ebs_volume_count: 0
+            node_type_id: m5d.large
+            custom_tags:
+              ResourceClass: SingleNode
+            spark_env_vars:
+              PYSPARK_PYTHON: /databricks/python3/bin/python3
+            enable_elastic_disk: false
+            data_security_mode: SINGLE_USER
+            runtime_engine: STANDARD
+            num_workers: 0

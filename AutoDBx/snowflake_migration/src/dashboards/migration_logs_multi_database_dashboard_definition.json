@@ -1,0 +1,1750 @@
+{
+  "datasets": [
+    {
+      "name": "database_type_options",
+      "displayName": "database_type_options",
+      "queryLines": [
+        "SELECT explode(array('mysql', 'redshift', 'postgres_sql', 'bigquery', 'mssql', 'snowflake')) as database_type_option"
+      ]
+    },
+    {
+      "name": "migration_summary",
+      "displayName": "migration_summary",
+      "queryLines": [
+        "SELECT\n",
+        "  COUNT(*) as total_migrations,\n",
+        "  COUNT(DISTINCT source) as unique_sources,\n",
+        "  COUNT(DISTINCT source_table) as unique_source_tables,\n",
+        "  COUNT(DISTINCT target_table) as unique_target_tables,\n",
+        "  SUM(CASE WHEN UPPER(TRIM(status)) = 'SUCCESS' THEN 1 ELSE 0 END) as successful_migrations,\n",
+        "  SUM(CASE WHEN UPPER(TRIM(status)) != 'SUCCESS' OR status IS NULL THEN 1 ELSE 0 END) as failed_migrations\n",
+        "FROM (\n",
+        "  SELECT \n",
+        "    source, source_table, target_table, status, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, status, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, status, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, status, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND timestamp BETWEEN :param_start_date AND :param_end_date \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, status, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, status, timestamp\n",
+        "    FROM migration_catalog.logging.migration_log_snowflake\n",
+        "    WHERE array_contains(:param_database_type, 'snowflake') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                },
+                {
+                  "value": "mssql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "migration_trends",
+      "displayName": "migration_trends",
+      "queryLines": [
+        "SELECT\n",
+        "  DATE(timestamp) as migration_date,\n",
+        "  COALESCE(load_type, 'Unknown') as load_type,\n",
+        "  UPPER(TRIM(COALESCE(status, 'UNKNOWN'))) as status,\n",
+        "  COUNT(*) as migration_count\n",
+        "FROM (\n",
+        "  SELECT timestamp, load_type, status FROM migration_catalog.logging.migration_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT timestamp, load_type, status FROM migration_catalog.logging.migration_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT timestamp, load_type, status FROM migration_catalog.logging.migration_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT timestamp, load_type, status FROM migration_catalog.logging.migration_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT timestamp, load_type, status FROM migration_catalog.logging.migration_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT timestamp, load_type, status FROM migration_catalog.logging.migration_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data\n",
+        "GROUP BY DATE(timestamp), COALESCE(load_type, 'Unknown'), UPPER(TRIM(COALESCE(status, 'UNKNOWN')))\n",
+        "ORDER BY migration_date"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "migration_details",
+      "displayName": "migration_details",
+      "queryLines": [
+        "SELECT\n",
+        "  source,\n",
+        "  source_table,\n",
+        "  target_table,\n",
+        "  COALESCE(load_type, 'Unknown') as load_type,\n",
+        "  UPPER(TRIM(COALESCE(status, 'UNKNOWN'))) as status,\n",
+        "  error_message,\n",
+        "  timestamp\n",
+        "FROM (\n",
+        "  SELECT \n",
+        "    source, source_table, target_table, load_type, status, error_message, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_status_filter = 'ALL' OR UPPER(TRIM(COALESCE(status, 'UNKNOWN'))) = :param_status_filter)\n",
+        "    AND (:param_load_type_filter = 'ALL' OR COALESCE(load_type, 'Unknown') = :param_load_type_filter)\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, load_type, status, error_message, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_status_filter = 'ALL' OR UPPER(TRIM(COALESCE(status, 'UNKNOWN'))) = :param_status_filter)\n",
+        "    AND (:param_load_type_filter = 'ALL' OR COALESCE(load_type, 'Unknown') = :param_load_type_filter)\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, load_type, status, error_message, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_status_filter = 'ALL' OR UPPER(TRIM(COALESCE(status, 'UNKNOWN'))) = :param_status_filter)\n",
+        "    AND (:param_load_type_filter = 'ALL' OR COALESCE(load_type, 'Unknown') = :param_load_type_filter)\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, load_type, status, error_message, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_status_filter = 'ALL' OR UPPER(TRIM(COALESCE(status, 'UNKNOWN'))) = :param_status_filter)\n",
+        "    AND (:param_load_type_filter = 'ALL' OR COALESCE(load_type, 'Unknown') = :param_load_type_filter)\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, load_type, status, error_message, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_status_filter = 'ALL' OR UPPER(TRIM(COALESCE(status, 'UNKNOWN'))) = :param_status_filter)\n",
+        "    AND (:param_load_type_filter = 'ALL' OR COALESCE(load_type, 'Unknown') = :param_load_type_filter)\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_table, target_table, load_type, status, error_message, timestamp\n",
+        "  FROM migration_catalog.logging.migration_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_status_filter = 'ALL' OR UPPER(TRIM(COALESCE(status, 'UNKNOWN'))) = :param_status_filter)\n",
+        "    AND (:param_load_type_filter = 'ALL' OR COALESCE(load_type, 'Unknown') = :param_load_type_filter)\n",
+        " ) combined_data\n",
+        "ORDER BY timestamp DESC"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_status_filter",
+          "keyword": "param_status_filter",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "ALL"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_load_type_filter",
+          "keyword": "param_load_type_filter",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "ALL"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                },
+                {
+                  "value": "bigquery"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "load_type_performance",
+      "displayName": "load_type_performance",
+      "queryLines": [
+        "SELECT\n",
+        "  COALESCE(load_type, 'Unknown') as load_type,\n",
+        "  COUNT(*) as total_loads,\n",
+        "  SUM(CASE WHEN UPPER(TRIM(status)) = 'SUCCESS' THEN 1 ELSE 0 END) as successful_loads,\n",
+        "  SUM(CASE WHEN UPPER(TRIM(status)) != 'SUCCESS' OR status IS NULL THEN 1 ELSE 0 END) as failed_loads,\n",
+        "  CASE \n",
+        "    WHEN COUNT(*) > 0 THEN ROUND((SUM(CASE WHEN UPPER(TRIM(status)) = 'SUCCESS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2)\n",
+        "    ELSE 0 \n",
+        "  END as success_rate\n",
+        "FROM (\n",
+        "  SELECT load_type, status, timestamp FROM migration_catalog.logging.migration_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT load_type, status, timestamp FROM migration_catalog.logging.migration_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT load_type, status, timestamp FROM migration_catalog.logging.migration_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT load_type, status, timestamp FROM migration_catalog.logging.migration_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT load_type, status, timestamp FROM migration_catalog.logging.migration_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT load_type, status, timestamp FROM migration_catalog.logging.migration_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND timestamp BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data\n",
+        "GROUP BY COALESCE(load_type, 'Unknown')\n",
+        "HAVING COUNT(*) > 0\n",
+        "ORDER BY total_loads DESC"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "status_filter_options",
+      "displayName": "status_filter_options",
+      "queryLines": [
+        "SELECT 'ALL' as status_option\n",
+        "UNION ALL\n",
+        "SELECT DISTINCT UPPER(TRIM(COALESCE(status, 'UNKNOWN'))) as status_option\n",
+        "FROM (\n",
+        "  SELECT status FROM migration_catalog.logging.migration_log_mysql\n",
+        "  WHERE :param_database_type = 'mysql' AND (status IS NOT NULL OR status IS NULL)\n",
+        "  UNION ALL\n",
+        "  SELECT status FROM migration_catalog.logging.migration_log_redshift\n",
+        "  WHERE :param_database_type = 'redshift' AND (status IS NOT NULL OR status IS NULL)\n",
+        "  UNION ALL\n",
+        "  SELECT status FROM migration_catalog.logging.migration_log_pgsql\n",
+        "  WHERE :param_database_type = 'postgres_sql' AND (status IS NOT NULL OR status IS NULL)\n",
+        " UNION ALL\n",
+        "  SELECT status FROM migration_catalog.logging.migration_log_bigquery\n",
+        "  WHERE :param_database_type = 'bigquery' AND (status IS NOT NULL OR status IS NULL)\n",
+        " UNION ALL\n",
+        "  SELECT status FROM migration_catalog.logging.migration_log_mssql\n",
+        "  WHERE :param_database_type = 'mssql' AND (status IS NOT NULL OR status IS NULL)\n",
+        " UNION ALL\n",
+        "  SELECT status FROM migration_catalog.logging.migration_log_snowflake\n",
+        "  WHERE :param_database_type = 'snowflake' AND (status IS NOT NULL OR status IS NULL)\n",
+        ") combined_statuses\n",
+        "ORDER BY status_option"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "load_type_filter_options",
+      "displayName": "load_type_filter_options",
+      "queryLines": [
+        "SELECT 'ALL' as load_type_option\n",
+        "UNION ALL\n",
+        "SELECT DISTINCT COALESCE(load_type, 'Unknown') as load_type_option\n",
+        "FROM (\n",
+        "  SELECT load_type FROM migration_catalog.logging.migration_log_mysql\n",
+        "  WHERE :param_database_type = 'mysql' AND (load_type IS NOT NULL OR load_type IS NULL)\n",
+        "  UNION ALL\n",
+        "  SELECT load_type FROM migration_catalog.logging.migration_log_redshift\n",
+        "  WHERE :param_database_type = 'redshift' AND (load_type IS NOT NULL OR load_type IS NULL)\n",
+        "  UNION ALL\n",
+        "  SELECT load_type FROM migration_catalog.logging.migration_log_pgsql\n",
+        "  WHERE :param_database_type = 'postgres_sql' AND (load_type IS NOT NULL OR load_type IS NULL)\n",
+        " UNION ALL\n",
+        "  SELECT load_type FROM migration_catalog.logging.migration_log_bigquery\n",
+        "  WHERE :param_database_type = 'bigquery' AND (load_type IS NOT NULL OR load_type IS NULL)\n",
+        " UNION ALL\n",
+        "  SELECT load_type FROM migration_catalog.logging.migration_log_mssql\n",
+        "  WHERE :param_database_type = 'mssql' AND (load_type IS NOT NULL OR load_type IS NULL)\n",
+        " UNION ALL\n",
+        "  SELECT load_type FROM migration_catalog.logging.migration_log_snowflake\n",
+        "  WHERE :param_database_type = 'snowflake' AND (load_type IS NOT NULL OR load_type IS NULL)\n",
+        ") combined_load_types\n",
+        "ORDER BY load_type_option"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "source_filter_options",
+      "displayName": "source_filter_options",
+      "queryLines": [
+        "SELECT 'ALL' as source_option\n",
+        "UNION ALL\n",
+        "SELECT DISTINCT source as source_option\n",
+        "FROM (\n",
+        "  SELECT source FROM migration_catalog.logging.migration_log_mysql\n",
+        "  WHERE :param_database_type = 'mysql' AND source IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT source FROM migration_catalog.logging.migration_log_redshift\n",
+        "  WHERE :param_database_type = 'redshift' AND source IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT source FROM migration_catalog.logging.migration_log_pgsql\n",
+        "  WHERE :param_database_type = 'postgres_sql' AND source IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT source FROM migration_catalog.logging.migration_log_bigquery\n",
+        "  WHERE :param_database_type = 'bigquery' AND source IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT source FROM migration_catalog.logging.migration_log_mssql\n",
+        "  WHERE :param_database_type = 'mssql' AND source IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT source FROM migration_catalog.logging.migration_log_snowflake\n",
+        "  WHERE :param_database_type = 'snowflake' AND source IS NOT NULL\n",
+        ") combined_sources\n",
+        "ORDER BY source_option"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "migration_log_page",
+      "displayName": "Multi-Database Migration Log Analysis",
+      "layout": [
+        {
+          "widget": {
+            "name": "databaseTypeFilter",
+            "queries": [
+              {
+                "name": "dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116439986e1d3cb45d6dc_database_type_option",
+                "query": {
+                  "datasetName": "database_type_options",
+                  "fields": [
+                    {
+                      "name": "database_type_option",
+                      "expression": "`database_type_option`"
+                    },
+                    {
+                      "name": "database_type_option_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116aca49b58c4bc096caa_param_database_type",
+                "query": {
+                  "datasetName": "migration_summary",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116d5b48a2a128a1ae81f_param_database_type",
+                "query": {
+                  "datasetName": "migration_trends",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116f1ae16665970576528_param_database_type",
+                "query": {
+                  "datasetName": "migration_details",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae611170caaef2ed23b0ead3d_param_database_type",
+                "query": {
+                  "datasetName": "load_type_performance",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae6111723bb52e596541db8a0_param_database_type",
+                "query": {
+                  "datasetName": "status_filter_options",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae6111739b825c114f67e472a_param_database_type",
+                "query": {
+                  "datasetName": "load_type_filter_options",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae6111751a40ec7239e939a24_param_database_type",
+                "query": {
+                  "datasetName": "source_filter_options",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "database_type_option",
+                    "displayName": "database_type_option",
+                    "queryName": "dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116439986e1d3cb45d6dc_database_type_option"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116aca49b58c4bc096caa_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116d5b48a2a128a1ae81f_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116f1ae16665970576528_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae611170caaef2ed23b0ead3d_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae6111723bb52e596541db8a0_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae6111739b825c114f67e472a_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae6111751a40ec7239e939a24_param_database_type"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Database Type"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "globalStartDate",
+            "queries": [
+              {
+                "name": "globalStartDatemigration_summary",
+                "query": {
+                  "datasetName": "migration_summary",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalStartDatemigration_trends",
+                "query": {
+                  "datasetName": "migration_trends",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalStartDatemigration_details",
+                "query": {
+                  "datasetName": "migration_details",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalStartDateload_type_performance",
+                "query": {
+                  "datasetName": "load_type_performance",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatemigration_summary"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatemigration_trends"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatemigration_details"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDateload_type_performance"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Start Date"
+              },
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "globalEndDate",
+            "queries": [
+              {
+                "name": "globalEndDatemigration_summary",
+                "query": {
+                  "datasetName": "migration_summary",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalEndDatemigration_trends",
+                "query": {
+                  "datasetName": "migration_trends",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalEndDatemigration_details",
+                "query": {
+                  "datasetName": "migration_details",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalEndDateload_type_performance",
+                "query": {
+                  "datasetName": "load_type_performance",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatemigration_summary"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatemigration_trends"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatemigration_details"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDateload_type_performance"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "End Date"
+              },
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "statusFilter",
+            "queries": [
+              {
+                "name": "statusFilterstatus_filter_options",
+                "query": {
+                  "datasetName": "status_filter_options",
+                  "fields": [
+                    {
+                      "name": "status_option",
+                      "expression": "`status_option`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "statusFiltermigration_details",
+                "query": {
+                  "datasetName": "migration_details",
+                  "parameters": [
+                    {
+                      "name": "param_status_filter",
+                      "keyword": "param_status_filter"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "displayName": "status_option",
+                    "fieldName": "status_option",
+                    "queryName": "statusFilterstatus_filter_options"
+                  },
+                  {
+                    "parameterName": "param_status_filter",
+                    "queryName": "statusFiltermigration_details"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Status Filter"
+              },
+              "version": 2,
+              "widgetType": "filter-single-select"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "loadTypeFilter",
+            "queries": [
+              {
+                "name": "dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae6111739b825c114f67e472a_load_type_option",
+                "query": {
+                  "datasetName": "load_type_filter_options",
+                  "fields": [
+                    {
+                      "name": "load_type_option",
+                      "expression": "`load_type_option`"
+                    },
+                    {
+                      "name": "load_type_option_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116f1ae16665970576528_param_load_type_filter",
+                "query": {
+                  "datasetName": "migration_details",
+                  "parameters": [
+                    {
+                      "name": "param_load_type_filter",
+                      "keyword": "param_load_type_filter"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "load_type_option",
+                    "displayName": "load_type_option",
+                    "queryName": "dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae6111739b825c114f67e472a_load_type_option"
+                  },
+                  {
+                    "parameterName": "param_load_type_filter",
+                    "queryName": "parameter_dashboards/01f06b9ae6101faf88f5bcfc05751e0a/datasets/01f06b9ae61116f1ae16665970576528_param_load_type_filter"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Load Type Filter"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "migrationSummaryCards",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "migration_summary",
+                  "fields": [
+                    {
+                      "name": "total_migrations",
+                      "expression": "`total_migrations`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Total Migrations",
+                  "fieldName": "total_migrations"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Total Migrations"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "uniqueSourcesCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "migration_summary",
+                  "fields": [
+                    {
+                      "name": "unique_sources",
+                      "expression": "`unique_sources`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Unique Sources",
+                  "fieldName": "unique_sources"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Unique Sources"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "uniqueSourceTablesCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "migration_summary",
+                  "fields": [
+                    {
+                      "name": "unique_source_tables",
+                      "expression": "`unique_source_tables`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Unique Source Tables",
+                  "fieldName": "unique_source_tables"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Source Tables"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "uniqueTargetTablesCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "migration_summary",
+                  "fields": [
+                    {
+                      "name": "unique_target_tables",
+                      "expression": "`unique_target_tables`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Unique Target Tables",
+                  "fieldName": "unique_target_tables"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Target Tables"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "successCountWidget",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "migration_summary",
+                  "fields": [
+                    {
+                      "name": "successful_migrations",
+                      "expression": "`successful_migrations`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Success Count",
+                  "fieldName": "successful_migrations"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Success Count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "failureCountWidget",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "migration_summary",
+                  "fields": [
+                    {
+                      "name": "failed_migrations",
+                      "expression": "`failed_migrations`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Failure Count",
+                  "fieldName": "failed_migrations"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Failure Count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "migrationTrends",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "migration_trends",
+                  "fields": [
+                    {
+                      "name": "migration_date",
+                      "expression": "`migration_date`"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "migration_count",
+                      "expression": "`migration_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "axis": {
+                    "hideTitle": true
+                  },
+                  "displayName": "Date",
+                  "fieldName": "migration_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "axis": {
+                    "title": "Migration Count"
+                  },
+                  "displayName": "Count",
+                  "fieldName": "migration_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "displayName": "Status",
+                  "fieldName": "status",
+                  "legend": {
+                    "position": "right",
+                    "title": "Status"
+                  },
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#28a745",
+                        "value": "SUCCESS"
+                      },
+                      {
+                        "color": "#dc3545",
+                        "value": "FAILED"
+                      },
+                      {
+                        "color": "#ffc107",
+                        "value": "UNKNOWN"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                }
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "loadTypePerformance",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "load_type_performance",
+                  "fields": [
+                    {
+                      "name": "load_type",
+                      "expression": "`load_type`"
+                    },
+                    {
+                      "name": "total_loads",
+                      "expression": "`total_loads`"
+                    },
+                    {
+                      "name": "success_rate",
+                      "expression": "`success_rate`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Load Type",
+                  "fieldName": "load_type",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "axis": {
+                    "title": "Load Type"
+                  }
+                },
+                "y": {
+                  "axis": {
+                    "title": "Success Rate (%)"
+                  },
+                  "displayName": "Success Rate (%)",
+                  "fieldName": "success_rate",
+                  "scale": {
+                    "type": "quantitative",
+                    "domain": [
+                      0,
+                      100
+                    ]
+                  }
+                },
+                "color": {
+                  "displayName": "Load Type",
+                  "fieldName": "load_type",
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#28a745",
+                        "value": "full"
+                      },
+                      {
+                        "color": "#007bff",
+                        "value": "incremental"
+                      },
+                      {
+                        "color": "#ffc107",
+                        "value": "Unknown"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 4,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "migrationDetailsTable",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "migration_details",
+                  "fields": [
+                    {
+                      "name": "source",
+                      "expression": "`source`"
+                    },
+                    {
+                      "name": "source_table",
+                      "expression": "`source_table`"
+                    },
+                    {
+                      "name": "target_table",
+                      "expression": "`target_table`"
+                    },
+                    {
+                      "name": "load_type",
+                      "expression": "`load_type`"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "error_message",
+                      "expression": "`error_message`"
+                    },
+                    {
+                      "name": "timestamp",
+                      "expression": "`timestamp`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "source",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "Source",
+                    "allowSearch": true,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "source"
+                  },
+                  {
+                    "fieldName": "source_table",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "Source Table",
+                    "allowSearch": true,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "source_table"
+                  },
+                  {
+                    "fieldName": "target_table",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "Target Table",
+                    "allowSearch": true,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "target_table"
+                  },
+                  {
+                    "fieldName": "load_type",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "Load Type",
+                    "allowSearch": true,
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "load_type"
+                  },
+                  {
+                    "fieldName": "status",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Status",
+                    "allowSearch": true,
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "status"
+                  },
+                  {
+                    "fieldName": "error_message",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100005,
+                    "title": "Error Message",
+                    "allowSearch": true,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "error_message"
+                  },
+                  {
+                    "fieldName": "timestamp",
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm:ss",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100006,
+                    "title": "Timestamp",
+                    "allowSearch": false,
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "timestamp"
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 15,
+              "paginationSize": "default",
+              "condensed": false,
+              "withRowNumber": false,
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Migration Details"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 6,
+            "height": 10
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+USERS: eena.agrawal@aidetic.in,sourya.barnwal@aidetic.in, rohan.singh@aidetic.in,madhumita.prasad@aidetic.in
+GROUP_NAME: mysql_group      # Add single group only
+TABLE_NAME: migration_catalog.logging.job_logs_mysql
+PERMISSIONS: select
+FLAG: user
+SCOPE_NAME: AutoDbx
+SECRETS:
+  ACCOUNT_ID: account_id
+  DATABRICKS_ACCOUNT_URL: databricks_account_url
+  ACCOUNT_API_TOKEN: account_api_token

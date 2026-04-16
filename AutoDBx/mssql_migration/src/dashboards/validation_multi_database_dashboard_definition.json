@@ -1,0 +1,1718 @@
+{
+  "datasets": [
+    {
+      "name": "database_type_options",
+      "displayName": "database_type_options",
+      "queryLines": [
+        "SELECT explode(array('mysql', 'redshift', 'postgres_sql', 'bigquery', 'mssql', 'snowflake')) as database_type_option"
+      ]
+    },
+    {
+      "name": "validation_summary",
+      "displayName": "validation_summary",
+      "queryLines": [
+        "SELECT\n",
+        "  COUNT(*) as total_validations,\n",
+        "  SUM(CASE WHEN row_count_match = 'Pass' THEN 1 ELSE 0 END) as row_count_pass,\n",
+        "  SUM(CASE WHEN column_count_match = 'Pass' THEN 1 ELSE 0 END) as column_count_pass,\n",
+        "  SUM(CASE WHEN schema_match = 'Pass' THEN 1 ELSE 0 END) as schema_match_pass,\n",
+        "  SUM(CASE WHEN distinct_count_match = 'Pass' THEN 1 ELSE 0 END) as distinct_count_pass,\n",
+        "  SUM(CASE WHEN row_count_match = 'Pass' AND column_count_match = 'Pass' AND schema_match = 'Pass' THEN 1 ELSE 0 END) as success_count,\n",
+        "  SUM(CASE WHEN row_count_match = 'Fail' OR column_count_match = 'Fail' OR schema_match = 'Fail' THEN 1 ELSE 0 END) as failure_count\n",
+        "FROM (\n",
+        "  SELECT \n",
+        "    row_count_match, column_count_match, schema_match, distinct_count_match, load_time\n",
+        "  FROM migration_catalog.validation_schema.validation_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    row_count_match, column_count_match, schema_match, distinct_count_match, load_time\n",
+        "  FROM migration_catalog.validation_schema.validation_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    row_count_match, column_count_match, schema_match, distinct_count_match, load_time\n",
+        "  FROM migration_catalog.validation_schema.validation_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    row_count_match, column_count_match, schema_match, distinct_count_match, load_time\n",
+        "  FROM migration_catalog.validation_schema.validation_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    row_count_match, column_count_match, schema_match, distinct_count_match, load_time\n",
+        "  FROM migration_catalog.validation_schema.validation_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    row_count_match, column_count_match, schema_match, distinct_count_match, load_time\n",
+        "  FROM migration_catalog.validation_schema.validation_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-30d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "validation_trends",
+      "displayName": "validation_trends",
+      "queryLines": [
+        "WITH validation_status AS (\n",
+        "  SELECT\n",
+        "    DATE(load_time) as validation_date,\n",
+        "    CASE \n",
+        "      WHEN row_count_match = 'Pass' AND column_count_match = 'Pass' AND schema_match = 'Pass' \n",
+        "      THEN 'Pass' \n",
+        "      ELSE 'Fail' \n",
+        "    END as final_status,\n",
+        "    COUNT(*) as validation_count\n",
+        "  FROM (\n",
+        "    SELECT row_count_match, column_count_match, schema_match, load_time\n",
+        "    FROM migration_catalog.validation_schema.validation_log_mysql\n",
+        "    WHERE array_contains(:param_database_type, 'mysql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "    UNION ALL\n",
+        "    SELECT row_count_match, column_count_match, schema_match, load_time\n",
+        "    FROM migration_catalog.validation_schema.validation_log_redshift\n",
+        "    WHERE array_contains(:param_database_type, 'redshift') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "    UNION ALL\n",
+        "    SELECT row_count_match, column_count_match, schema_match, load_time\n",
+        "    FROM migration_catalog.validation_schema.validation_log_pgsql\n",
+        "    WHERE array_contains(:param_database_type, 'postgres_sql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "    SELECT row_count_match, column_count_match, schema_match, load_time\n",
+        "    FROM migration_catalog.validation_schema.validation_log_bigquery\n",
+        "    WHERE array_contains(:param_database_type, 'bigquery') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "    SELECT row_count_match, column_count_match, schema_match, load_time\n",
+        "    FROM migration_catalog.validation_schema.validation_log_mssql\n",
+        "    WHERE array_contains(:param_database_type, 'mssql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "    SELECT row_count_match, column_count_match, schema_match, load_time\n",
+        "    FROM migration_catalog.validation_schema.validation_log_snowflake\n",
+        "    WHERE array_contains(:param_database_type, 'snowflake') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  ) combined_data\n",
+        "  GROUP BY DATE(load_time), \n",
+        "    CASE \n",
+        "      WHEN row_count_match = 'Pass' AND column_count_match = 'Pass' AND schema_match = 'Pass' \n",
+        "      THEN 'Pass' \n",
+        "      ELSE 'Fail' \n",
+        "    END\n",
+        ")\n",
+        "SELECT \n",
+        "  validation_date as time_key,\n",
+        "  final_status as validation_status,\n",
+        "  validation_count\n",
+        "FROM validation_status\n",
+        "ORDER BY validation_date"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-30d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "validation_details",
+      "displayName": "validation_details",
+      "queryLines": [
+        "SELECT\n",
+        "  source,\n",
+        "  source_full_table_name,\n",
+        "  target_full_table_name,\n",
+        "  load_time,\n",
+        "  row_count_source,\n",
+        "  row_count_target,\n",
+        "  row_count_match,\n",
+        "  distinct_count_source,\n",
+        "  distinct_count_target,\n",
+        "  distinct_count_match,\n",
+        "  column_count_source,\n",
+        "  column_count_target,\n",
+        "  column_count_match,\n",
+        "  source_column_type_count,\n",
+        "  target_column_type_count,\n",
+        "  column_type_count_match,\n",
+        "  schema_match,\n",
+        "  CASE \n",
+        "    WHEN row_count_match = 'Pass' AND column_count_match = 'Pass' AND schema_match = 'Pass' \n",
+        "    THEN 'Pass' \n",
+        "    ELSE 'Fail' \n",
+        "  END as final_status\n",
+        "FROM (\n",
+        "  SELECT \n",
+        "    source, source_full_table_name, target_full_table_name, load_time,\n",
+        "    row_count_source, row_count_target, row_count_match,\n",
+        "    distinct_count_source, distinct_count_target, distinct_count_match,\n",
+        "    column_count_source, column_count_target, column_count_match,\n",
+        "    source_column_type_count, target_column_type_count, column_type_count_match,\n",
+        "    schema_match\n",
+        "  FROM migration_catalog.validation_schema.validation_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_show_failed = 'No' OR \n",
+        "         (:param_show_failed = 'Yes' AND \n",
+        "          (row_count_match = 'Fail' OR column_count_match = 'Fail' OR schema_match = 'Fail')))\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_full_table_name, target_full_table_name, load_time,\n",
+        "    row_count_source, row_count_target, row_count_match,\n",
+        "    distinct_count_source, distinct_count_target, distinct_count_match,\n",
+        "    column_count_source, column_count_target, column_count_match,\n",
+        "    source_column_type_count, target_column_type_count, column_type_count_match,\n",
+        "    schema_match\n",
+        "  FROM migration_catalog.validation_schema.validation_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_show_failed = 'No' OR \n",
+        "         (:param_show_failed = 'Yes' AND \n",
+        "          (row_count_match = 'Fail' OR column_count_match = 'Fail' OR schema_match = 'Fail')))\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_full_table_name, target_full_table_name, load_time,\n",
+        "    row_count_source, row_count_target, row_count_match,\n",
+        "    distinct_count_source, distinct_count_target, distinct_count_match,\n",
+        "    column_count_source, column_count_target, column_count_match,\n",
+        "    source_column_type_count, target_column_type_count, column_type_count_match,\n",
+        "    schema_match\n",
+        "  FROM migration_catalog.validation_schema.validation_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_show_failed = 'No' OR \n",
+        "         (:param_show_failed = 'Yes' AND \n",
+        "          (row_count_match = 'Fail' OR column_count_match = 'Fail' OR schema_match = 'Fail')))\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_full_table_name, target_full_table_name, load_time,\n",
+        "    row_count_source, row_count_target, row_count_match,\n",
+        "    distinct_count_source, distinct_count_target, distinct_count_match,\n",
+        "    column_count_source, column_count_target, column_count_match,\n",
+        "    source_column_type_count, target_column_type_count, column_type_count_match,\n",
+        "    schema_match\n",
+        "  FROM migration_catalog.validation_schema.validation_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_show_failed = 'No' OR \n",
+        "         (:param_show_failed = 'Yes' AND \n",
+        "          (row_count_match = 'Fail' OR column_count_match = 'Fail' OR schema_match = 'Fail')))\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_full_table_name, target_full_table_name, load_time,\n",
+        "    row_count_source, row_count_target, row_count_match,\n",
+        "    distinct_count_source, distinct_count_target, distinct_count_match,\n",
+        "    column_count_source, column_count_target, column_count_match,\n",
+        "    source_column_type_count, target_column_type_count, column_type_count_match,\n",
+        "    schema_match\n",
+        "  FROM migration_catalog.validation_schema.validation_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_show_failed = 'No' OR \n",
+        "         (:param_show_failed = 'Yes' AND \n",
+        "          (row_count_match = 'Fail' OR column_count_match = 'Fail' OR schema_match = 'Fail')))\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    source, source_full_table_name, target_full_table_name, load_time,\n",
+        "    row_count_source, row_count_target, row_count_match,\n",
+        "    distinct_count_source, distinct_count_target, distinct_count_match,\n",
+        "    column_count_source, column_count_target, column_count_match,\n",
+        "    source_column_type_count, target_column_type_count, column_type_count_match,\n",
+        "    schema_match\n",
+        "  FROM migration_catalog.validation_schema.validation_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND (:param_show_failed = 'No' OR \n",
+        "         (:param_show_failed = 'Yes' AND \n",
+        "          (row_count_match = 'Fail' OR column_count_match = 'Fail' OR schema_match = 'Fail')))\n",
+        ") combined_data\n",
+        "ORDER BY load_time DESC"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-30d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_show_failed",
+          "keyword": "param_show_failed",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "No"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "validation_metrics",
+      "displayName": "validation_metrics",
+      "queryLines": [
+        "SELECT\n",
+        "  'Row Count' as metric_type,\n",
+        "  SUM(CASE WHEN row_count_match = 'Pass' THEN 1 ELSE 0 END) as pass_count,\n",
+        "  SUM(CASE WHEN row_count_match = 'Fail' THEN 1 ELSE 0 END) as fail_count\n",
+        "FROM (\n",
+        "  SELECT row_count_match, load_time FROM migration_catalog.validation_schema.validation_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT row_count_match, load_time FROM migration_catalog.validation_schema.validation_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT row_count_match, load_time FROM migration_catalog.validation_schema.validation_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT row_count_match, load_time FROM migration_catalog.validation_schema.validation_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT row_count_match, load_time FROM migration_catalog.validation_schema.validation_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT row_count_match, load_time FROM migration_catalog.validation_schema.validation_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  'Column Count' as metric_type,\n",
+        "  SUM(CASE WHEN column_count_match = 'Pass' THEN 1 ELSE 0 END) as pass_count,\n",
+        "  SUM(CASE WHEN column_count_match = 'Fail' THEN 1 ELSE 0 END) as fail_count\n",
+        "FROM (\n",
+        "  SELECT column_count_match, load_time FROM migration_catalog.validation_schema.validation_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT column_count_match, load_time FROM migration_catalog.validation_schema.validation_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT column_count_match, load_time FROM migration_catalog.validation_schema.validation_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT column_count_match, load_time FROM migration_catalog.validation_schema.validation_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT column_count_match, load_time FROM migration_catalog.validation_schema.validation_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT column_count_match, load_time FROM migration_catalog.validation_schema.validation_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " ) combined_data\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  'Schema Match' as metric_type,\n",
+        "  SUM(CASE WHEN schema_match = 'Pass' THEN 1 ELSE 0 END) as pass_count,\n",
+        "  SUM(CASE WHEN schema_match = 'Fail' THEN 1 ELSE 0 END) as fail_count\n",
+        "FROM (\n",
+        "  SELECT schema_match, load_time FROM migration_catalog.validation_schema.validation_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT schema_match, load_time FROM migration_catalog.validation_schema.validation_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT schema_match, load_time FROM migration_catalog.validation_schema.validation_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT schema_match, load_time FROM migration_catalog.validation_schema.validation_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT schema_match, load_time FROM migration_catalog.validation_schema.validation_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT schema_match, load_time FROM migration_catalog.validation_schema.validation_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  'Distinct Count' as metric_type,\n",
+        "  SUM(CASE WHEN distinct_count_match = 'Pass' THEN 1 ELSE 0 END) as pass_count,\n",
+        "  SUM(CASE WHEN distinct_count_match = 'Fail' THEN 1 ELSE 0 END) as fail_count\n",
+        "FROM (\n",
+        "  SELECT distinct_count_match, load_time FROM migration_catalog.validation_schema.validation_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT distinct_count_match, load_time FROM migration_catalog.validation_schema.validation_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT distinct_count_match, load_time FROM migration_catalog.validation_schema.validation_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT distinct_count_match, load_time FROM migration_catalog.validation_schema.validation_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT distinct_count_match, load_time FROM migration_catalog.validation_schema.validation_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT distinct_count_match, load_time FROM migration_catalog.validation_schema.validation_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND load_time BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-30d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "select_show_failed_filter",
+      "displayName": "select_show_failed_filter",
+      "queryLines": [
+        "SELECT explode(array('Yes', 'No')) as show_failed_option"
+      ]
+    },
+    {
+      "name": "source_filter_options",
+      "displayName": "source_filter_options",
+      "queryLines": [
+        "SELECT 'ALL' as source_option\n",
+        "UNION ALL\n",
+        "SELECT DISTINCT source as source_option\n",
+        "FROM (\n",
+        "  SELECT source FROM migration_catalog.validation_schema.validation_log_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND source IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT source FROM migration_catalog.validation_schema.validation_log_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND source IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT source FROM migration_catalog.validation_schema.validation_log_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND source IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT source FROM migration_catalog.validation_schema.validation_log_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND source IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT source FROM migration_catalog.validation_schema.validation_log_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND source IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT source FROM migration_catalog.validation_schema.validation_log_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND source IS NOT NULL\n",
+        ") combined_sources\n",
+        "ORDER BY source_option"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "validation_status_filter_options",
+      "displayName": "validation_status_filter_options",
+      "queryLines": [
+        "SELECT explode(array('ALL', 'Pass', 'Fail')) as validation_status_option"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "validation_page",
+      "displayName": "Multi-Database Data Validation Analysis",
+      "layout": [
+        {
+          "widget": {
+            "name": "databaseTypeFilter",
+            "queries": [
+              {
+                "name": "dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1e32a0be8e8ce0d002a6_database_type_option",
+                "query": {
+                  "datasetName": "database_type_options",
+                  "fields": [
+                    {
+                      "name": "database_type_option",
+                      "expression": "`database_type_option`"
+                    },
+                    {
+                      "name": "database_type_option_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1e84b7519c3352422771_param_database_type",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1eacaaaaacdd1bedd043_param_database_type",
+                "query": {
+                  "datasetName": "validation_trends",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1ec8ba45a40f283efa75_param_database_type",
+                "query": {
+                  "datasetName": "validation_details",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1efd8fbe87583fd1bd52_param_database_type",
+                "query": {
+                  "datasetName": "validation_metrics",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1f35944f26cacce57abf_param_database_type",
+                "query": {
+                  "datasetName": "source_filter_options",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "database_type_option",
+                    "displayName": "database_type_option",
+                    "queryName": "dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1e32a0be8e8ce0d002a6_database_type_option"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1e84b7519c3352422771_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1eacaaaaacdd1bedd043_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1ec8ba45a40f283efa75_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1efd8fbe87583fd1bd52_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae5fc18939daffc4c89590f67/datasets/01f06b9ae5fc1f35944f26cacce57abf_param_database_type"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Database Type"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "globalStartDate",
+            "queries": [
+              {
+                "name": "globalStartDatevalidation_summary",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalStartDatevalidation_trends",
+                "query": {
+                  "datasetName": "validation_trends",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalStartDatevalidation_details",
+                "query": {
+                  "datasetName": "validation_details",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalStartDatevalidation_metrics",
+                "query": {
+                  "datasetName": "validation_metrics",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatevalidation_summary"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatevalidation_trends"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatevalidation_details"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "globalStartDatevalidation_metrics"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Start Date"
+              },
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "globalEndDate",
+            "queries": [
+              {
+                "name": "globalEndDatevalidation_summary",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalEndDatevalidation_trends",
+                "query": {
+                  "datasetName": "validation_trends",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalEndDatevalidation_details",
+                "query": {
+                  "datasetName": "validation_details",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "globalEndDatevalidation_metrics",
+                "query": {
+                  "datasetName": "validation_metrics",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatevalidation_summary"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatevalidation_trends"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatevalidation_details"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "globalEndDatevalidation_metrics"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "End Date"
+              },
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "showFailedFilter",
+            "queries": [
+              {
+                "name": "showFailedFilterselect_show_failed_filter",
+                "query": {
+                  "datasetName": "select_show_failed_filter",
+                  "fields": [
+                    {
+                      "name": "show_failed_option",
+                      "expression": "`show_failed_option`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "showFailedFiltervalidation_details",
+                "query": {
+                  "datasetName": "validation_details",
+                  "parameters": [
+                    {
+                      "name": "param_show_failed",
+                      "keyword": "param_show_failed"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "displayName": "show_failed_option",
+                    "fieldName": "show_failed_option",
+                    "queryName": "showFailedFilterselect_show_failed_filter"
+                  },
+                  {
+                    "parameterName": "param_show_failed",
+                    "queryName": "showFailedFiltervalidation_details"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Only Failed"
+              },
+              "version": 2,
+              "widgetType": "filter-single-select"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "validationSummaryCards",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "fields": [
+                    {
+                      "name": "total_validations",
+                      "expression": "`total_validations`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Total Validations",
+                  "fieldName": "total_validations"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Total Validations"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "rowCountPassCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "fields": [
+                    {
+                      "name": "row_count_pass",
+                      "expression": "`row_count_pass`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Row Count Pass",
+                  "fieldName": "row_count_pass"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Row Count Pass"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "columnCountPassCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "fields": [
+                    {
+                      "name": "column_count_pass",
+                      "expression": "`column_count_pass`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Column Count Pass",
+                  "fieldName": "column_count_pass"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Col Count Pass"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "schemaMatchPassCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "fields": [
+                    {
+                      "name": "schema_match_pass",
+                      "expression": "`schema_match_pass`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Schema Match Pass",
+                  "fieldName": "schema_match_pass"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Schema Match"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "distinctCountPassCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "fields": [
+                    {
+                      "name": "distinct_count_pass",
+                      "expression": "`distinct_count_pass`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Distinct Count Pass",
+                  "fieldName": "distinct_count_pass"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Distinct Count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "successCountWidget",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "fields": [
+                    {
+                      "name": "success_count",
+                      "expression": "`success_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Success Count",
+                  "fieldName": "success_count"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Success Count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "failureCountWidget",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_summary",
+                  "fields": [
+                    {
+                      "name": "failure_count",
+                      "expression": "`failure_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Failure Count",
+                  "fieldName": "failure_count"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Failure Count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "validationMetricsChart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_metrics",
+                  "fields": [
+                    {
+                      "name": "metric_type",
+                      "expression": "`metric_type`"
+                    },
+                    {
+                      "name": "pass_count",
+                      "expression": "`pass_count`"
+                    },
+                    {
+                      "name": "fail_count",
+                      "expression": "`fail_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Metric Type",
+                  "fieldName": "metric_type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "axis": {
+                    "title": "Count"
+                  },
+                  "displayName": "Pass Count",
+                  "fieldName": "pass_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "value": "#28a745"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "validationTrendsChart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_trends",
+                  "fields": [
+                    {
+                      "name": "time_key",
+                      "expression": "`time_key`"
+                    },
+                    {
+                      "name": "validation_status",
+                      "expression": "`validation_status`"
+                    },
+                    {
+                      "name": "validation_count",
+                      "expression": "`validation_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "axis": {
+                    "hideTitle": true
+                  },
+                  "displayName": "Date",
+                  "fieldName": "time_key",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "axis": {
+                    "title": "Validation Count"
+                  },
+                  "displayName": "Count",
+                  "fieldName": "validation_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "displayName": "Status",
+                  "fieldName": "validation_status",
+                  "legend": {
+                    "position": "right",
+                    "title": "Status"
+                  },
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#28a745",
+                        "value": "Pass"
+                      },
+                      {
+                        "color": "#dc3545",
+                        "value": "Fail"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                }
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 4,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "validationDetailsTable",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validation_details",
+                  "fields": [
+                    {
+                      "name": "source",
+                      "expression": "`source`"
+                    },
+                    {
+                      "name": "source_full_table_name",
+                      "expression": "`source_full_table_name`"
+                    },
+                    {
+                      "name": "target_full_table_name",
+                      "expression": "`target_full_table_name`"
+                    },
+                    {
+                      "name": "load_time",
+                      "expression": "`load_time`"
+                    },
+                    {
+                      "name": "row_count_source",
+                      "expression": "`row_count_source`"
+                    },
+                    {
+                      "name": "row_count_target",
+                      "expression": "`row_count_target`"
+                    },
+                    {
+                      "name": "row_count_match",
+                      "expression": "`row_count_match`"
+                    },
+                    {
+                      "name": "column_count_match",
+                      "expression": "`column_count_match`"
+                    },
+                    {
+                      "name": "schema_match",
+                      "expression": "`schema_match`"
+                    },
+                    {
+                      "name": "final_status",
+                      "expression": "`final_status`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "allowHTMLByDefault": false,
+              "condensed": false,
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "source",
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Source",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "source",
+                    "order": 10000,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "source_full_table_name",
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Source Table",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "source_full_table_name",
+                    "order": 10001,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "target_full_table_name",
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Target Table",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "target_full_table_name",
+                    "order": 10002,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "load_time",
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Load Time",
+                    "type": "datetime",
+                    "visible": true,
+                    "displayName": "load_time",
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm:ss",
+                    "order": 10003,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "row_count_source",
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Source Rows",
+                    "type": "integer",
+                    "visible": true,
+                    "displayName": "row_count_source",
+                    "order": 10004,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "number",
+                    "numberFormat": "0"
+                  },
+                  {
+                    "fieldName": "row_count_target",
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "title": "Target Rows",
+                    "type": "integer",
+                    "visible": true,
+                    "displayName": "row_count_target",
+                    "order": 10005,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "number",
+                    "numberFormat": "0"
+                  },
+                  {
+                    "fieldName": "row_count_match",
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Row Count Match",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "row_count_match",
+                    "order": 10006,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "column_count_match",
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Column Count Match",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "column_count_match",
+                    "order": 10007,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "schema_match",
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Schema Match",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "schema_match",
+                    "order": 10008,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  },
+                  {
+                    "fieldName": "final_status",
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "allowSearch": true,
+                    "title": "Final Status",
+                    "type": "string",
+                    "visible": true,
+                    "displayName": "final_status",
+                    "order": 10009,
+                    "preserveWhitespace": false,
+                    "useMonospaceFont": false,
+                    "highlightLinks": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "displayAs": "string"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Data Validation Details"
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 15,
+              "paginationSize": "default",
+              "version": 1,
+              "widgetType": "table",
+              "withRowNumber": false
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 6,
+            "height": 10
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+name: redshift
+config_catalog: migration_catalog
+config_schema: config_schema
+config_table: config_table_redshift
+logging_catalog: migration_catalog
+logging_schema: logging
+log_table: migration_log_redshift
+job_logs_table: job_logs_redshift
+validation_catalog: migration_catalog
+validation_schema: validation_schema
+validation_table: validation_log_redshift
+secrets_scope: AutoDbx
+jdbc_driver: com.amazon.redshift.jdbc.Driver
+data_quality_catalog: migration_catalog
+data_quality_schema: dataquality_schema
+data_quality_table: data_quality_log_redshift
+
+secrets:
+  host: redshift_host
+  port: redshift_port
+  user: redshift_user
+  password: redshift_password

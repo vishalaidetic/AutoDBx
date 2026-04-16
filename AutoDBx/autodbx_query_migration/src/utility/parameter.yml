@@ -1,0 +1,10 @@
+# Source database type
+src: mysql
+
+# Table mapping configuration
+mapping_catalog: migration_catalog
+mapping_schema: query_conversion
+mapping_table: query_conversion_config
+execution_table_catalog: migration_catalog
+execution_table_schema: query_conversion
+execution_table: query_execution

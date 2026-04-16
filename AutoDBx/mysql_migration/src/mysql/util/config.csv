@@ -1,0 +1,11 @@
+source,Source_Schema,Source_table,Target_Table_Catalog,Target_table_schema,Target_table_name,load_type,load_type_col_name,key_column,Optimize,PartitionBy,ClusterBy,Z-Order,last_load_time
+mysql,source_schema,payments,migration_catalog,my_sql_migration,payments,full,null,null,,,,,2025-06-16T12:12:53.000+00:00
+mysql,source_schema,customers,migration_catalog,my_sql_migration,customers,full,null,null,,,"city, customer_id",,2025-06-16T12:13:12.000+00:00
+mysql,source_schema,departments,migration_catalog,my_sql_migration,departments,full,null,null,True,dept_id,,,2025-06-16T12:12:33.000+00:00
+mysql,source_schema,products,migration_catalog,my_sql_migration,products,full,null,null,,,,,2025-06-16T12:11:54.000+00:00
+mysql,source_schema,suppliers,migration_catalog,my_sql_migration,suppliers,full,null,null,,,,,2025-06-16T12:12:13.000+00:00
+mysql,source_schema,attendance,migration_catalog,my_sql_migration,attendance,full,null,null,True,,date,,2025-06-16T12:11:34.000+00:00
+mysql,source_schema,orders,migration_catalog,my_sql_migration,orders,full,null,null,,,,,2025-06-16T12:10:52.000+00:00
+mysql,source_schema,inventory,migration_catalog,my_sql_migration,inventory,full,null,null,,,,,2025-06-16T12:11:13.000+00:00
+mysql,source_schema,attendance_log,migration_catalog,my_sql_migration,attendance_log,incremental,update_time,record_id,True,date,,record_id,
+mysql,source_schema,projects,migration_catalog,my_sql_migration,projects,full,null,null,,,,,2025-06-16T12:13:30.000+00:00

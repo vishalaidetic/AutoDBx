@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-dotenv
+requests
+databricks-sql-connector
+pymysql
+psycopg2-binary
+pymongo
+pydantic
+python-multipart

@@ -1,0 +1,10 @@
+source,Source_Database,Source_Schema,Source_table,Target_Table_Catalog,Target_table_schema,Target_table_name,load_type,load_type_col_name,key_column,Optimize,PartitionBy,ClusterBy,Z-Order,last_load_time
+snowflake,SNOWFLAKE_DBX_DB,DBX_SCHEMA,CATEGORIES,migration_catalog,SNOWFLAKE_Migration,CATEGORIES,full,CREATED_AT,ID,,,,,
+snowflake,SNOWFLAKE_DBX_DB,DBX_SCHEMA,EMPLOYEES,migration_catalog,SNOWFLAKE_Migration,EMPLOYEES,full,null,-,,,,,
+snowflake,SNOWFLAKE_DBX_DB,DBX_SCHEMA,INVENTORY,migration_catalog,SNOWFLAKE_Migration,INVENTORY,full,null,-,,,,,
+snowflake,SNOWFLAKE_DBX_DB,DBX_SCHEMA,ORDERS,migration_catalog,SNOWFLAKE_Migration,ORDERS,full,null,-,,,,,
+snowflake,SNOWFLAKE_DBX_DB,DBX_SCHEMA,ORDER_ITEMS,migration_catalog,SNOWFLAKE_Migration,ORDER_ITEMS,full,null,-,,,,,
+snowflake,SNOWFLAKE_DBX_DB,DBX_SCHEMA,PAYMENTS,migration_catalog,SNOWFLAKE_Migration,PAYMENTS,full,null,-,,,,,
+snowflake,SNOWFLAKE_DBX_DB,DBX_SCHEMA,PRODUCTS,migration_catalog,SNOWFLAKE_Migration,PRODUCTS,full,null,-,,,,,
+snowflake,SNOWFLAKE_DBX_DB,DBX_SCHEMA,SHIPMENTS,migration_catalog,SNOWFLAKE_Migration,SHIPMENTS,full,null,-,,,,,
+snowflake,SNOWFLAKE_DBX_DB,DBX_SCHEMA,SUPPLIERS,migration_catalog,SNOWFLAKE_Migration,SUPPLIERS,full,null,-,,,,,

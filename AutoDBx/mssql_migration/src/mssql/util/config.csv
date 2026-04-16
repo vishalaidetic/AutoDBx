@@ -1,0 +1,13 @@
+source,Source_Schema,Source_table,Target_Table_Catalog,Target_table_schema,Target_table_name,load_type,load_type_col_name,key_column,Optimize,PartitionBy,ClusterBy,Z-Order,last_load_time
+sqlserver,ECommerceDB,Categories,migration_catalog,server,categories,full,null,null,TRUE,,,CategoryID,
+sqlserver,ECommerceDB,Suppliers,migration_catalog,server,suppliers,full,null,null,TRUE,,Country,,
+sqlserver,ECommerceDB,Customers,migration_catalog,server,customers,full,null,null,TRUE,RegistrationDate,,,
+sqlserver,ECommerceDB,Products,migration_catalog,server,products,full,null,null,TRUE,,,ProductID,
+sqlserver,ECommerceDB,Employees,migration_catalog,server,employees,full,null,null,TRUE,,Department,,
+sqlserver,ECommerceDB,Orders,migration_catalog,server,orders,incremental,OrderDate,OrderID,TRUE,OrderDate,,,
+sqlserver,ECommerceDB,OrderDetails,migration_catalog,server,orderdetails,full,null,null,TRUE,,"OrderID, ProductID",,
+sqlserver,ECommerceDB,Inventory,migration_catalog,server,inventory,full,null,null,TRUE,,"WarehouseLocation, ProductID",,
+sqlserver,ECommerceDB,Reviews,migration_catalog,server,reviews,full,null,null,TRUE,ReviewDate,,,
+sqlserver,ECommerceDB,Promotions,migration_catalog,server,promotions,full,null,null,TRUE,,"StartDate, EndDate",,
+sqlserver,ECommerceDB,ShippingMethods,migration_catalog,server,shippingmethods,full,null,null,TRUE,,,ShippingMethodID,
+sqlserver,ECommerceDB,PaymentTransactions,migration_catalog,server,paymenttransactions,full,null,null,TRUE,,,TransactionID,

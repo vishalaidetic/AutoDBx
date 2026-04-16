@@ -1,0 +1,25 @@
+INSERT INTO users (username, email) VALUES ('alice', 'alice@example.com');
+
+-- 3. Insert another user
+INSERT INTO users (username, email) VALUES ('bob', 'bob@example.com');
+
+-- 4. Select all users
+SELECT * FROM users;
+
+-- 5. Select users with a specific email
+SELECT * FROM users WHERE email = 'alice@example.com';
+
+-- 6. Update a user's email
+UPDATE users SET email = 'alice123@example.com' WHERE username = 'alice';
+
+-- 7. Delete a user
+DELETE FROM users WHERE username = 'bob';
+
+-- 8. Add a new column to the users table
+ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+-- 9. Count the number of users
+SELECT COUNT(*) FROM users;
+
+-- 10. Drop the users table
+SELECT * FROM users;

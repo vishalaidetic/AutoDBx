@@ -1,0 +1,35 @@
+# The main job for auto_dbx_proj.
+resources:
+  jobs:
+    grant_row_level_permission_job:
+      name: "row_level_grant_permission"
+
+      email_notifications:
+        on_start:
+          - eena.agrawal@aidetic.in
+        on_success:
+          - eena.agrawal@aidetic.in
+        on_failure:
+          - eena.agrawal@aidetic.in
+
+      tasks:
+        - task_key: grant_privileges_task
+          job_cluster_key: grant_privileges
+          notebook_task:
+            notebook_path: "../src/mysql/grant_row_level_permissions.ipynb"
+
+      job_clusters:
+        - job_cluster_key: grant_privileges
+          new_cluster:
+            spark_version: 16.4.x-scala2.12
+            aws_attributes:
+              first_on_demand: 1
+              availability: SPOT_WITH_FALLBACK
+              zone_id: auto
+              spot_bid_price_percent: 100
+            node_type_id: m5d.large
+            enable_elastic_disk: true
+            policy_id: 001F019DFCF63E87
+            data_security_mode: USER_ISOLATION
+            runtime_engine: STANDARD
+            num_workers: 1

@@ -1,0 +1,43 @@
+# The main job for auto_dbx_proj.
+resources:
+  jobs:
+    config_table_creation:
+      name: "config_table_creation"
+
+      email_notifications:
+        on_start:
+          - rohan.singh@aidetic.in
+        on_success:
+          - rohan.singh@aidetic.in
+        on_failure:
+          - rohan.singh@aidetic.in
+
+      tasks:
+        - task_key: main_task
+          job_cluster_key: job_cluster
+          notebook_task:
+            notebook_path: "../src/mysql/configtablecreation.ipynb"
+
+      job_clusters:
+        - job_cluster_key: job_cluster
+          new_cluster:
+            cluster_name: ""
+            spark_version: 16.4.x-scala2.12
+            spark_conf:
+              spark.master: local[*, 4]
+              spark.databricks.cluster.profile: singleNode
+            aws_attributes:
+              first_on_demand: 1
+              availability: SPOT_WITH_FALLBACK
+              zone_id: ap-south-1b
+              spot_bid_price_percent: 100
+              ebs_volume_count: 0
+            node_type_id: m5d.large
+            custom_tags:
+              ResourceClass: SingleNode
+            spark_env_vars:
+              PYSPARK_PYTHON: /databricks/python3/bin/python3
+            enable_elastic_disk: false
+            data_security_mode: SINGLE_USER
+            runtime_engine: STANDARD
+            num_workers: 0

@@ -1,0 +1,36 @@
+# This is a Databricks asset bundle definition for auto_dbx_proj.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+bundle:
+  name: auto_dbx_proj
+  uuid: b972eaae-5d9c-4119-9057-97180cfbd547
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: production
+    default: true
+    workspace:
+      host: https://dbc-d03e585a-0b01.cloud.databricks.com
+      root_path: /Shared/AutoDbx/Pgsql/.bundle/
+    permissions:
+      - group_name: users
+        level: CAN_MANAGE
+      - user_name: sourya.barnwal@aidetic.in
+        level: CAN_MANAGE
+      - user_name: rohan.singh@aidetic.in
+        level: CAN_MANAGE
+      - user_name: madhumita.prasad@aidetic.in
+        level: CAN_MANAGE
+      - user_name: praveen.yadav@aidetic.in
+        level: CAN_MANAGE
+      - user_name: aman.kumar@aidetic.in
+        level: CAN_MANAGE
+      - user_name: abhishek.srinivasan@aidetic.in
+        level: CAN_MANAGE
+
+variables:
+  warehouse_id:
+    description: "SQL Warehouse ID for dashboards"
+    default: "bff67f2829865fad"

@@ -1,0 +1,17 @@
+GROUPS:
+  marketing:
+    users: eena.agrawal@aidetic.in,sourya.barnwal@aidetic.in,rohan.singh@aidetic.in
+    column_values: Marketing,HR,Finance
+  Engg:
+    users: rohan.singh@aidetic.in,madhumita.prasad@aidetic.in
+    column_values: Engineering,IT
+
+TABLE_NAME: migration_catalog.my_sql_migration.departments
+FUNCTION_NAME: test_func
+COLUMN_NAME: dept_name
+COLUMN_TYPE: String
+SCOPE_NAME: AutoDbx
+SECRETS:
+  ACCOUNT_ID: account_id
+  DATABRICKS_ACCOUNT_URL: databricks_account_url
+  ACCOUNT_API_TOKEN: account_api_token

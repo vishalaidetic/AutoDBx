@@ -1,0 +1,24 @@
+name: snowflake
+config_catalog: migration_catalog
+config_schema: config_schema
+config_table: config_table_snowflake
+logging_catalog: migration_catalog
+logging_schema: logging
+log_table: migration_log_snowflake
+job_logs_table: job_logs_snowflake
+validation_catalog: migration_catalog
+validation_schema: validation_schema
+validation_table: validation_log_snowflake
+secrets_scope: AutoDbx
+jdbc_driver: com.mysql.cj.jdbc.Driver
+data_quality_catalog: migration_catalog
+data_quality_schema: dataquality_schema
+data_quality_table: data_quality_log_snowflake
+
+secrets:
+  sfURL: sfURL
+  sfUser: sfUser                     
+  sfPassword: sfPassword          
+  sfWarehouse: sfWarehouse                         
+  sfRole: sfRole
+  sfport: "443"

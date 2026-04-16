@@ -1,0 +1,11 @@
+source,Source_Schema,Source_table,Target_Table_Catalog,Target_table_schema,Target_table_name,load_type,load_type_col_name,key_column,Optimize,PartitionBy,ClusterBy,Z-Order,last_load_time
+redshift,dev,suppliers,migration_catalog,redshift_migration,suppliers,full,null,null,TRUE,,,,2025-06-16T09:35:14.000+00:00
+redshift,dev,inventory,migration_catalog,redshift_migration,inventory,full,null,null,,,"warehouse_location, last_updated",,2025-06-16T09:35:31.000+00:00
+redshift,dev,order_items,migration_catalog,redshift_migration,order_items,full,null,null,,"order_id, product_id",,,2025-06-16T09:35:49.000+00:00
+redshift,dev,products,migration_catalog,redshift_migration,products,full,null,null,,,,,2025-06-16T09:34:56.000+00:00
+redshift,dev,sales_regions,migration_catalog,redshift_migration,sales_regions,full,null,null,,,,,2025-06-16T09:34:18.000+00:00
+redshift,dev,customer_feedback,migration_catalog,redshift_migration,customer_feedback,full,null,null,TRUE,feedback_date,,order_id,2025-06-16T09:34:38.000+00:00
+redshift,dev,orders,migration_catalog,redshift_migration,orders,full,null,null,,,,,2025-06-16T09:33:14.000+00:00
+redshift,dev,employees,migration_catalog,redshift_migration,employees,full,null,null,,,,,2025-06-16T09:33:39.000+00:00
+redshift,dev,customers,migration_catalog,redshift_migration,customers,full,null,null,,registration_date,,,2025-06-16T09:33:59.000+00:00
+redshift,dev,attendance_log,migration_catalog,redshift_migration,attendance_log,incremental,time,record_id,TRUE,,,record_id,

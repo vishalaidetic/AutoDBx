@@ -1,0 +1,10 @@
+README.md
+setup.py
+src/auto_dbx_proj/__init__.py
+src/auto_dbx_proj/main.py
+src/auto_dbx_proj.egg-info/PKG-INFO
+src/auto_dbx_proj.egg-info/SOURCES.txt
+src/auto_dbx_proj.egg-info/dependency_links.txt
+src/auto_dbx_proj.egg-info/entry_points.txt
+src/auto_dbx_proj.egg-info/requires.txt
+src/auto_dbx_proj.egg-info/top_level.txt

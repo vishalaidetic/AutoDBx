@@ -1,0 +1,12 @@
+USERS: aman.kumar@aidetic.in, eena.agrawal@aidetic.in,sourya.barnwal@aidetic.in,rohan.singh@aidetic.in,madhumita.prasad@aidetic.in
+GROUP_NAMES: test3,test4,test5,test4,test3    # add no of groups you have added column_values i.e., column_value represnt the group associated with it
+TABLE_NAME: poc_catalog.pg_sql_migration.departments
+FUNCTION_NAME: test_func
+COLUMN_NAME: department
+COLUMN_VALUE : Sales,Marketing,IT,HR,Finance
+COLUMN_TYPE : String
+SCOPE_NAME: AutoDbx
+SECRETS:
+  ACCOUNT_ID: account_id
+  DATABRICKS_ACCOUNT_URL: databricks_account_url
+  ACCOUNT_API_TOKEN: account_api_token

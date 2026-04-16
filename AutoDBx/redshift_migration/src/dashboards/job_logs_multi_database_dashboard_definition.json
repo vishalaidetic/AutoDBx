@@ -1,0 +1,2962 @@
+{
+  "datasets": [
+    {
+      "name": "database_type_options",
+      "displayName": "database_type_options",
+      "queryLines": [
+        "SELECT explode(array('mysql', 'redshift', 'postgres_sql', 'bigquery', 'mssql', 'snowflake')) as database_type_option"
+      ]
+    },
+    {
+      "name": "job_execution_summary",
+      "displayName": "job_execution_summary",
+      "queryLines": [
+        "SELECT\n",
+        "  COUNT(*) as total_jobs,\n",
+        "  COUNT(DISTINCT workflow_name) as unique_workflows,\n",
+        "  COUNT(CASE WHEN job_run_status IS NOT NULL THEN 1 END) as jobs_with_status,\n",
+        "  SUM(CASE WHEN UPPER(TRIM(COALESCE(CAST(job_run_status AS STRING), ''))) LIKE '%SUCCESS%' OR UPPER(TRIM(COALESCE(CAST(job_run_status AS STRING), ''))) LIKE '%COMPLETE%' OR UPPER(TRIM(COALESCE(CAST(job_run_status AS STRING), ''))) LIKE '%SUCCEED%' THEN 1 ELSE 0 END) as success_count,\n",
+        "  SUM(CASE WHEN UPPER(TRIM(COALESCE(CAST(job_run_status AS STRING), ''))) LIKE '%FAIL%' OR UPPER(TRIM(COALESCE(CAST(job_run_status AS STRING), ''))) LIKE '%ERROR%' THEN 1 ELSE 0 END) as failure_count\n",
+        "FROM (\n",
+        "  SELECT \n",
+        "    workflow_name, job_run_status, start_time_job\n",
+        "  FROM migration_catalog.logging.job_logs_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_run_status, start_time_job\n",
+        "  FROM migration_catalog.logging.job_logs_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_run_status, start_time_job\n",
+        "  FROM migration_catalog.logging.job_logs_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_run_status, start_time_job\n",
+        "  FROM migration_catalog.logging.job_logs_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_run_status, start_time_job\n",
+        "  FROM migration_catalog.logging.job_logs_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_run_status, start_time_job\n",
+        "  FROM migration_catalog.logging.job_logs_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "job_success_rate",
+      "displayName": "job_success_rate",
+      "queryLines": [
+        "SELECT\n",
+        "  'Data Completeness' as metric_name,\n",
+        "  CASE \n",
+        "    WHEN COUNT(*) > 0 THEN \n",
+        "      ROUND(\n",
+        "        (COUNT(CASE WHEN job_run_status IS NOT NULL THEN 1 END) * 100.0) / COUNT(*), 1\n",
+        "      )\n",
+        "    ELSE 0 \n",
+        "  END as success_percentage\n",
+        "FROM (\n",
+        "  SELECT job_run_status, start_time_job FROM migration_catalog.logging.job_logs_mysql \n",
+        "  WHERE :param_database_type = 'mysql' AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT job_run_status, start_time_job FROM migration_catalog.logging.job_logs_redshift \n",
+        "  WHERE :param_database_type = 'redshift' AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT job_run_status, start_time_job FROM migration_catalog.logging.job_logs_pgsql \n",
+        "  WHERE :param_database_type = 'postgres_sql' AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT job_run_status, start_time_job FROM migration_catalog.logging.job_logs_bigquery \n",
+        "  WHERE :param_database_type = 'bigquery' AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT job_run_status, start_time_job FROM migration_catalog.logging.job_logs_mssql \n",
+        "  WHERE :param_database_type = 'mssql' AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        " UNION ALL\n",
+        "  SELECT job_run_status, start_time_job FROM migration_catalog.logging.job_logs_snowflake \n",
+        "  WHERE :param_database_type = 'snowflake' AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "job_status_counts",
+      "displayName": "job_status_counts",
+      "queryLines": [
+        "SELECT\n",
+        "  status,\n",
+        "  COUNT(*) as status_count\n",
+        "FROM (\n",
+        "  SELECT \n",
+        "  CASE \n",
+        "  WHEN job_run_status.Job_Run_Status = \"Success_With_Failures\"\n",
+        "  THEN \"Failed\"\n",
+        "  ELSE job_run_status.Job_Run_Status \n",
+        "  END AS status,  start_time_job  \n",
+        "  FROM migration_catalog.logging.job_logs_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') \n",
+        "    AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND job_run_status.Job_Run_Status IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT \n",
+        "  CASE \n",
+        "  WHEN job_run_status.Job_Run_Status = \"Success_With_Failures\"\n",
+        "  THEN \"Failed\"\n",
+        "  ELSE job_run_status.Job_Run_Status \n",
+        "  END AS status,  start_time_job  \n",
+        "  FROM migration_catalog.logging.job_logs_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') \n",
+        "    AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND job_run_status.Job_Run_Status IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT \n",
+        "  CASE \n",
+        "  WHEN job_run_status.Job_Run_Status = \"Success_With_Failures\"\n",
+        "  THEN \"Failed\"\n",
+        "  ELSE job_run_status.Job_Run_Status \n",
+        "  END AS status,  start_time_job   \n",
+        "  FROM migration_catalog.logging.job_logs_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') \n",
+        "    AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND job_run_status.Job_Run_Status IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT \n",
+        "  CASE \n",
+        "  WHEN job_run_status.Job_Run_Status = \"Success_With_Failures\"\n",
+        "  THEN \"Failed\"\n",
+        "  ELSE job_run_status.Job_Run_Status \n",
+        "  END AS status,  start_time_job  \n",
+        "  FROM migration_catalog.logging.job_logs_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') \n",
+        "    AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND job_run_status.Job_Run_Status IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT \n",
+        "  CASE \n",
+        "  WHEN job_run_status.Job_Run_Status = \"Success_With_Failures\"\n",
+        "  THEN \"Failed\"\n",
+        "  ELSE job_run_status.Job_Run_Status \n",
+        "  END AS status,  start_time_job  \n",
+        "  FROM migration_catalog.logging.job_logs_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') \n",
+        "    AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND job_run_status.Job_Run_Status IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT \n",
+        "  CASE \n",
+        "  WHEN job_run_status.Job_Run_Status = \"Success_With_Failures\"\n",
+        "  THEN \"Failed\"\n",
+        "  ELSE job_run_status.Job_Run_Status \n",
+        "  END AS status,  start_time_job  \n",
+        "  FROM migration_catalog.logging.job_logs_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') \n",
+        "    AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "    AND job_run_status.Job_Run_Status IS NOT NULL\n",
+        ") combined_data\n",
+        "GROUP BY status\n",
+        "ORDER BY status_count DESC"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                },
+                {
+                  "value": "mssql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "job_daily_trends",
+      "displayName": "job_daily_trends",
+      "queryLines": [
+        "SELECT\n",
+        "  DATE(start_time_job) as job_date,\n",
+        "  COUNT(*) as daily_job_count\n",
+        "FROM (\n",
+        "  SELECT start_time_job FROM migration_catalog.logging.job_logs_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT start_time_job FROM migration_catalog.logging.job_logs_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT start_time_job FROM migration_catalog.logging.job_logs_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT start_time_job FROM migration_catalog.logging.job_logs_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT start_time_job FROM migration_catalog.logging.job_logs_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT start_time_job FROM migration_catalog.logging.job_logs_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data\n",
+        "GROUP BY DATE(start_time_job)\n",
+        "ORDER BY job_date"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "workflow_summary",
+      "displayName": "workflow_summary",
+      "queryLines": [
+        "SELECT\n",
+        "  workflow_name,\n",
+        "  COUNT(*) as total_runs,\n",
+        "  COUNT(DISTINCT DATE(start_time_job)) as days_active\n",
+        "FROM (\n",
+        "  SELECT workflow_name, start_time_job FROM migration_catalog.logging.job_logs_mysql\n",
+        "  WHERE array_contains(:param_database_type, 'mysql') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT workflow_name, start_time_job FROM migration_catalog.logging.job_logs_redshift\n",
+        "  WHERE array_contains(:param_database_type, 'redshift') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT workflow_name, start_time_job FROM migration_catalog.logging.job_logs_pgsql\n",
+        "  WHERE array_contains(:param_database_type, 'postgres_sql') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT workflow_name, start_time_job FROM migration_catalog.logging.job_logs_bigquery\n",
+        "  WHERE array_contains(:param_database_type, 'bigquery') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT workflow_name, start_time_job FROM migration_catalog.logging.job_logs_mssql\n",
+        "  WHERE array_contains(:param_database_type, 'mssql') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "  UNION ALL\n",
+        "  SELECT workflow_name, start_time_job FROM migration_catalog.logging.job_logs_snowflake\n",
+        "  WHERE array_contains(:param_database_type, 'snowflake') AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        ") combined_data\n",
+        "GROUP BY workflow_name\n",
+        "ORDER BY total_runs DESC\n",
+        "LIMIT 10"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now-7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "now"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "redshift"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "job_execution_details",
+      "displayName": "job_execution_details",
+      "queryLines": [
+        "SELECT\n",
+        "  workflow_name,\n",
+        "  job_id,\n",
+        "  job_run_id,\n",
+        "  start_time_job,\n",
+        "  end_time_job,\n",
+        "  cluster_step_up_duration,\n",
+        "  job_run_status,\n",
+        "  job_run_status.Job_Run_Status as status,\n",
+        "  total_job_run_duration,\n",
+        "  run_page,\n",
+        "  tasks,\n",
+        "  job_run_status_code,\n",
+        "  job_run_execution_duration,\n",
+        "  job_run_status_message,\n",
+        "  insert_time,\n",
+        "  database_type\n",
+        "FROM (\n",
+        "  SELECT \n",
+        "    workflow_name, job_id, job_run_id, start_time_job, end_time_job, cluster_step_up_duration,\n",
+        "    job_run_status, job_run_status.Job_Run_Status as status, total_job_run_duration, run_page, tasks, job_run_status_code, job_run_execution_duration, job_run_status_message, insert_time,\n",
+        "    'mysql' as database_type\n",
+        "  FROM migration_catalog.logging.job_logs_mysql\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_id, job_run_id, start_time_job, end_time_job, cluster_step_up_duration, \n",
+        "    job_run_status, job_run_status.Job_Run_Status as status, total_job_run_duration, run_page, tasks, job_run_status_code, job_run_execution_duration, job_run_status_message, insert_time,\n",
+        "    'redshift' as database_type\n",
+        "  FROM migration_catalog.logging.job_logs_redshift\n",
+        "  \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_id, job_run_id, start_time_job, end_time_job, cluster_step_up_duration, \n",
+        "    job_run_status, job_run_status.Job_Run_Status as status, total_job_run_duration, run_page, tasks, job_run_status_code, job_run_execution_duration, job_run_status_message, insert_time,\n",
+        "    'pgsql' as database_type\n",
+        "  FROM migration_catalog.logging.job_logs_pgsql\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_id, job_run_id, start_time_job, end_time_job, cluster_step_up_duration, \n",
+        "    job_run_status, job_run_status.Job_Run_Status as status,total_job_run_duration, run_page, tasks, job_run_status_code, job_run_execution_duration, job_run_status_message, insert_time,\n",
+        "    'bigquery' as database_type\n",
+        "  FROM migration_catalog.logging.job_logs_bigquery\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_id, job_run_id, start_time_job, end_time_job, cluster_step_up_duration, \n",
+        "    job_run_status, job_run_status.Job_Run_Status as status, total_job_run_duration, run_page, tasks, job_run_status_code, job_run_execution_duration, job_run_status_message, insert_time,\n",
+        "    'mssql' as database_type\n",
+        "  FROM migration_catalog.logging.job_logs_mssql\n",
+        " \n",
+        "  UNION ALL\n",
+        "  \n",
+        "  SELECT \n",
+        "    workflow_name, job_id, job_run_id, start_time_job, end_time_job, cluster_step_up_duration, \n",
+        "    job_run_status, job_run_status.Job_Run_Status as status, total_job_run_duration, run_page, tasks, job_run_status_code, job_run_execution_duration, job_run_status_message, insert_time,\n",
+        "    'snowflake' as database_type\n",
+        "  FROM migration_catalog.logging.job_logs_snowflake\n",
+        ") combined_data\n",
+        "WHERE array_contains(:param_database_type, database_type) AND start_time_job BETWEEN :param_start_date AND :param_end_date\n",
+        "ORDER BY start_time_job DESC\n",
+        "LIMIT 100"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "2025-07-21T00:00:00.000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "2025-07-28T23:59:59.000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "redshift"
+                },
+                {
+                  "value": "mysql"
+                },
+                {
+                  "value": "mssql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "workflow_filter_options",
+      "displayName": "workflow_filter_options",
+      "queryLines": [
+        "SELECT 'ALL' as workflow_option\n",
+        "UNION ALL\n",
+        "SELECT DISTINCT workflow_name as workflow_option\n",
+        "FROM (\n",
+        "  SELECT workflow_name FROM migration_catalog.logging.job_logs_mysql\n",
+        "  WHERE :param_database_type = 'mysql' AND workflow_name IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT workflow_name FROM migration_catalog.logging.job_logs_redshift\n",
+        "  WHERE :param_database_type = 'redshift' AND workflow_name IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT workflow_name FROM migration_catalog.logging.job_logs_pgsql\n",
+        "  WHERE :param_database_type = 'postgres_sql' AND workflow_name IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT workflow_name FROM migration_catalog.logging.job_logs_bigquery\n",
+        "  WHERE :param_database_type = 'bigquery' AND workflow_name IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT workflow_name FROM migration_catalog.logging.job_logs_mssql\n",
+        "  WHERE :param_database_type = 'mssql' AND workflow_name IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT workflow_name FROM migration_catalog.logging.job_logs_snowflake\n",
+        "  WHERE :param_database_type = 'snowflake' AND workflow_name IS NOT NULL\n",
+        ") combined_workflows"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "job_status_filter_options",
+      "displayName": "job_status_filter_options",
+      "queryLines": [
+        "SELECT 'ALL' as status_option\n",
+        "UNION ALL\n",
+        "SELECT DISTINCT CAST(job_run_status AS STRING) as status_option\n",
+        "FROM (\n",
+        "  SELECT job_run_status FROM migration_catalog.logging.job_logs_mysql\n",
+        "  WHERE :param_database_type = 'mysql' AND job_run_status IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT job_run_status FROM migration_catalog.logging.job_logs_redshift\n",
+        "  WHERE :param_database_type = 'redshift' AND job_run_status IS NOT NULL\n",
+        "  UNION ALL\n",
+        "  SELECT job_run_status FROM migration_catalog.logging.job_logs_pgsql\n",
+        "  WHERE :param_database_type = 'postgres_sql' AND job_run_status IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT job_run_status FROM migration_catalog.logging.job_logs_bigquery\n",
+        "  WHERE :param_database_type = 'bigquery' AND job_run_status IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT job_run_status FROM migration_catalog.logging.job_logs_mssql\n",
+        "  WHERE :param_database_type = 'mssql' AND job_run_status IS NOT NULL\n",
+        " UNION ALL\n",
+        "  SELECT job_run_status FROM migration_catalog.logging.job_logs_snowflake\n",
+        "  WHERE :param_database_type = 'snowflake' AND job_run_status IS NOT NULL\n",
+        ") combined_statuses"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "mysql"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "b5b698e1",
+      "displayName": "Job Run Analysis and Status Overview",
+      "queryLines": [
+        "WITH logs AS (\r\n",
+        "  -- Redshift logs\r\n",
+        "  SELECT \r\n",
+        "    * ,\r\n",
+        "    'redshift' AS source_database_type\r\n",
+        "  FROM migration_catalog.logging.job_logs_redshift\r\n",
+        "  \r\n",
+        "  UNION ALL\r\n",
+        "  \r\n",
+        "  -- BigQuery logs\r\n",
+        "  SELECT \r\n",
+        "    * ,\r\n",
+        "    'bigquery' AS source_database_type\r\n",
+        "  FROM migration_catalog.logging.job_logs_bigquery\r\n",
+        "  \r\n",
+        "  UNION ALL\r\n",
+        "  \r\n",
+        "  -- MS SQL Server logs\r\n",
+        "  SELECT \r\n",
+        "    * ,\r\n",
+        "    'mssql' AS source_database_type\r\n",
+        "  FROM migration_catalog.logging.job_logs_mssql\r\n",
+        "  \r\n",
+        "  UNION ALL\r\n",
+        "  \r\n",
+        "  -- MySQL logs\r\n",
+        "  SELECT \r\n",
+        "    * ,\r\n",
+        "    'mysql' AS source_database_type\r\n",
+        "  FROM migration_catalog.logging.job_logs_mysql\r\n",
+        "  \r\n",
+        "  UNION ALL\r\n",
+        "  \r\n",
+        "  -- Snowflake logs\r\n",
+        "  SELECT \r\n",
+        "    * ,\r\n",
+        "    'snowflake' AS source_database_type\r\n",
+        "  FROM migration_catalog.logging.job_logs_snowflake\r\n",
+        "  \r\n",
+        "  UNION ALL\r\n",
+        "  \r\n",
+        "  -- PostgreSQL logs\r\n",
+        "  SELECT \r\n",
+        "    * ,\r\n",
+        "    'pgsql' AS source_database_type\r\n",
+        "  FROM migration_catalog.logging.job_logs_pgsql\r\n",
+        "),\r\n",
+        "\r\n",
+        "last_success_per_row AS (\r\n",
+        "  SELECT\r\n",
+        "    logs.workflow_name,\r\n",
+        "    logs.job_run_id,\r\n",
+        "    logs.source_database_type,\r\n",
+        "    success.end_time_job AS last_success_end_time,\r\n",
+        "    success.total_job_run_duration AS last_success_duration,\r\n",
+        "    CASE \r\n",
+        "      WHEN logs.job_run_status.Job_Run_Status = 'Success_With_Failures' THEN 'Failed'\r\n",
+        "      -- WHEN logs.job_run_status.Job_Run_Status != 'success' THEN 'Failed'\r\n",
+        "      ELSE 'Success'\r\n",
+        "    END AS status,\r\n",
+        "    ROW_NUMBER() OVER (\r\n",
+        "      PARTITION BY logs.job_run_id \r\n",
+        "      ORDER BY success.insert_time DESC\r\n",
+        "    ) AS rn\r\n",
+        "  FROM logs\r\n",
+        "  LEFT JOIN logs AS success\r\n",
+        "    ON logs.workflow_name = success.workflow_name\r\n",
+        "    AND logs.source_database_type = success.source_database_type\r\n",
+        "    AND success.job_run_status.Job_Run_Status = 'success'\r\n",
+        "    AND success.insert_time < logs.insert_time\r\n",
+        ")\r\n",
+        "\r\n",
+        "SELECT \r\n",
+        "  l.*,\r\n",
+        "  s.last_success_end_time,\r\n",
+        "  s.last_success_duration,\r\n",
+        "  s.status\r\n",
+        "FROM logs l\r\n",
+        "LEFT JOIN (\r\n",
+        "  SELECT * \r\n",
+        "  FROM last_success_per_row \r\n",
+        "  WHERE rn = 1\r\n",
+        ") s\r\n",
+        "  ON l.job_run_id = s.job_run_id\r\n",
+        "  AND l.source_database_type = s.source_database_type\r\n",
+        "WHERE s.status = 'Failed'\r\n",
+        "  AND l.start_time_job BETWEEN :param_start_date AND :param_end_date\r\n",
+        "  AND array_contains(:param_database_type, l.source_database_type)\r\n",
+        "ORDER BY l.insert_time DESC, l.source_database_type, l.workflow_name;"
+      ],
+      "parameters": [
+        {
+          "displayName": "param_database_type",
+          "keyword": "param_database_type",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {}
+        },
+        {
+          "displayName": "param_start_date",
+          "keyword": "param_start_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "2025-07-01T00:00:00.000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "param_end_date",
+          "keyword": "param_end_date",
+          "dataType": "DATETIME",
+          "defaultSelection": {
+            "values": {
+              "dataType": "DATETIME",
+              "values": [
+                {
+                  "value": "2025-07-31T23:59:59.000"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "job_logs_page",
+      "displayName": "Multi-Database Job Logs Analysis",
+      "layout": [
+        {
+          "widget": {
+            "name": "databaseTypeFilter",
+            "queries": [
+              {
+                "name": "dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae606135a9e2071d564f4bb44_database_type_option",
+                "query": {
+                  "datasetName": "database_type_options",
+                  "fields": [
+                    {
+                      "name": "database_type_option",
+                      "expression": "`database_type_option`"
+                    },
+                    {
+                      "name": "database_type_option_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae606139fb26ed68a92737d15_param_database_type",
+                "query": {
+                  "datasetName": "job_execution_summary",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613b3a9edb82db5545765_param_database_type",
+                "query": {
+                  "datasetName": "job_success_rate",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613c1bc8b850f4f4de18d_param_database_type",
+                "query": {
+                  "datasetName": "job_status_counts",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613cf8ea9c104b80c988c_param_database_type",
+                "query": {
+                  "datasetName": "job_daily_trends",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613dcb8ccbfd1c83460cd_param_database_type",
+                "query": {
+                  "datasetName": "workflow_summary",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613ea992ff19b1e87ecaa_param_database_type",
+                "query": {
+                  "datasetName": "job_execution_details",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613f7a7982801a78a0c82_param_database_type",
+                "query": {
+                  "datasetName": "workflow_filter_options",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60614039ab8e99b209ecf42_param_database_type",
+                "query": {
+                  "datasetName": "job_status_filter_options",
+                  "parameters": [
+                    {
+                      "name": "param_database_type",
+                      "keyword": "param_database_type"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "database_type_option",
+                    "displayName": "database_type_option",
+                    "queryName": "dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae606135a9e2071d564f4bb44_database_type_option"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae606139fb26ed68a92737d15_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613b3a9edb82db5545765_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613c1bc8b850f4f4de18d_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613cf8ea9c104b80c988c_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613dcb8ccbfd1c83460cd_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613ea992ff19b1e87ecaa_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60613f7a7982801a78a0c82_param_database_type"
+                  },
+                  {
+                    "parameterName": "param_database_type",
+                    "queryName": "parameter_dashboards/01f06b9ae6051e489fbcbd8259d12f2c/datasets/01f06b9ae60614039ab8e99b209ecf42_param_database_type"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Database Type"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "globalStartDate",
+            "queries": [
+              {
+                "name": "start_summary",
+                "query": {
+                  "datasetName": "job_execution_summary",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "start_success",
+                "query": {
+                  "datasetName": "job_success_rate",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "start_status",
+                "query": {
+                  "datasetName": "job_status_counts",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "start_trends",
+                "query": {
+                  "datasetName": "job_daily_trends",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "start_workflow",
+                "query": {
+                  "datasetName": "workflow_summary",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "start_details",
+                "query": {
+                  "datasetName": "job_execution_details",
+                  "parameters": [
+                    {
+                      "name": "param_start_date",
+                      "keyword": "param_start_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "start_summary"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "start_success"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "start_status"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "start_trends"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "start_workflow"
+                  },
+                  {
+                    "parameterName": "param_start_date",
+                    "queryName": "start_details"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Start Date"
+              },
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "globalEndDate",
+            "queries": [
+              {
+                "name": "end_summary",
+                "query": {
+                  "datasetName": "job_execution_summary",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "end_success",
+                "query": {
+                  "datasetName": "job_success_rate",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "end_status",
+                "query": {
+                  "datasetName": "job_status_counts",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "end_trends",
+                "query": {
+                  "datasetName": "job_daily_trends",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "end_workflow",
+                "query": {
+                  "datasetName": "workflow_summary",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "end_details",
+                "query": {
+                  "datasetName": "job_execution_details",
+                  "parameters": [
+                    {
+                      "name": "param_end_date",
+                      "keyword": "param_end_date"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "end_summary"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "end_success"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "end_status"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "end_trends"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "end_workflow"
+                  },
+                  {
+                    "parameterName": "param_end_date",
+                    "queryName": "end_details"
+                  }
+                ]
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "End Date"
+              },
+              "version": 2,
+              "widgetType": "filter-date-picker"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "totalJobsCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_execution_summary",
+                  "fields": [
+                    {
+                      "name": "total_jobs",
+                      "expression": "`total_jobs`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Total Jobs Executed",
+                  "fieldName": "total_jobs"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Total Execution"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "workflowsCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_execution_summary",
+                  "fields": [
+                    {
+                      "name": "unique_workflows",
+                      "expression": "`unique_workflows`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Different Workflows",
+                  "fieldName": "unique_workflows"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Workflows"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "statusCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_execution_summary",
+                  "fields": [
+                    {
+                      "name": "jobs_with_status",
+                      "expression": "`jobs_with_status`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Jobs with Status Info",
+                  "fieldName": "jobs_with_status"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Job Status Info"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 1,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "dataCompletenessCard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_success_rate",
+                  "fields": [
+                    {
+                      "name": "success_percentage",
+                      "expression": "`success_percentage`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Data Completeness (%)",
+                  "fieldName": "success_percentage"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Complete Data"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "successCountWidget",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_execution_summary",
+                  "fields": [
+                    {
+                      "name": "success_count",
+                      "expression": "`success_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Success Count",
+                  "fieldName": "success_count"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Success Count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "failureCountWidget",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_execution_summary",
+                  "fields": [
+                    {
+                      "name": "failure_count",
+                      "expression": "`failure_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "target": {
+                  "displayName": "Failure Count",
+                  "fieldName": "failure_count"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Failure Count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "jobStatusChart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_status_counts",
+                  "fields": [
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "status_count",
+                      "expression": "`status_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "status",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "status"
+                },
+                "y": {
+                  "fieldName": "status_count",
+                  "axis": {
+                    "title": "Count"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Job Count"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Job Status Count"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "dailyTrendsChart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_daily_trends",
+                  "fields": [
+                    {
+                      "name": "job_date",
+                      "expression": "`job_date`"
+                    },
+                    {
+                      "name": "daily_job_count",
+                      "expression": "`daily_job_count`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "axis": {
+                    "hideTitle": true
+                  },
+                  "displayName": "Date",
+                  "fieldName": "job_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "axis": {
+                    "title": "Job Count"
+                  },
+                  "displayName": "Daily Jobs",
+                  "fieldName": "daily_job_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "value": "#007bff"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Daily Job Trends"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "workflowSummaryChart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "workflow_summary",
+                  "fields": [
+                    {
+                      "name": "workflow_name",
+                      "expression": "`workflow_name`"
+                    },
+                    {
+                      "name": "total_runs",
+                      "expression": "`total_runs`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Workflow",
+                  "fieldName": "workflow_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "axis": {
+                    "title": "Total Runs"
+                  },
+                  "displayName": "Runs",
+                  "fieldName": "total_runs",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "value": "#17a2b8"
+                }
+              },
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Workflow Summary"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "jobExecutionDetailsTable",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_execution_details",
+                  "fields": [
+                    {
+                      "name": "workflow_name",
+                      "expression": "`workflow_name`"
+                    },
+                    {
+                      "name": "job_id",
+                      "expression": "`job_id`"
+                    },
+                    {
+                      "name": "job_run_id",
+                      "expression": "`job_run_id`"
+                    },
+                    {
+                      "name": "start_time_job",
+                      "expression": "`start_time_job`"
+                    },
+                    {
+                      "name": "end_time_job",
+                      "expression": "`end_time_job`"
+                    },
+                    {
+                      "name": "job_run_status",
+                      "expression": "`job_run_status`"
+                    },
+                    {
+                      "name": "job_run_execution_duration",
+                      "expression": "`job_run_execution_duration`"
+                    },
+                    {
+                      "name": "job_run_status_message",
+                      "expression": "`job_run_status_message`"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "insert_time",
+                      "expression": "`insert_time`"
+                    },
+                    {
+                      "name": "cluster_step_up_duration",
+                      "expression": "`cluster_step_up_duration`"
+                    },
+                    {
+                      "name": "total_job_run_duration",
+                      "expression": "`total_job_run_duration`"
+                    },
+                    {
+                      "name": "run_page",
+                      "expression": "`run_page`"
+                    },
+                    {
+                      "name": "tasks",
+                      "expression": "`tasks`"
+                    },
+                    {
+                      "name": "job_run_status_code",
+                      "expression": "`job_run_status_code`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "workflow_name",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 0,
+                    "title": "Workflow",
+                    "allowSearch": true,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "workflow_name"
+                  },
+                  {
+                    "fieldName": "job_id",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "numberFormat": "0",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 1,
+                    "title": "Job ID",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_id"
+                  },
+                  {
+                    "fieldName": "job_run_id",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "numberFormat": "0",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 2,
+                    "title": "Run ID",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_id"
+                  },
+                  {
+                    "fieldName": "start_time_job",
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm:ss",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 3,
+                    "title": "Start Time",
+                    "allowSearch": false,
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "start_time_job"
+                  },
+                  {
+                    "fieldName": "end_time_job",
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm:ss",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 4,
+                    "title": "End Time",
+                    "allowSearch": false,
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "end_time_job"
+                  },
+                  {
+                    "fieldName": "job_run_status",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "complex",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 5,
+                    "title": "Status",
+                    "allowSearch": true,
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_status"
+                  },
+                  {
+                    "fieldName": "job_run_execution_duration",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 6,
+                    "title": "Duration",
+                    "allowSearch": false,
+                    "alignContent": "center",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_execution_duration"
+                  },
+                  {
+                    "fieldName": "job_run_status_message",
+                    "dateTimeFormat": "YYYY-MM-DD",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 7,
+                    "title": "Status Message",
+                    "allowSearch": true,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_status_message"
+                  },
+                  {
+                    "fieldName": "status",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 8,
+                    "title": "status",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "status"
+                  },
+                  {
+                    "fieldName": "insert_time",
+                    "dateTimeFormat": "DD/MM/YYYY HH:mm:ss.SSS",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 9,
+                    "title": "insert_time",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "insert_time"
+                  },
+                  {
+                    "fieldName": "cluster_step_up_duration",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 10,
+                    "title": "cluster_step_up_duration",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "cluster_step_up_duration"
+                  },
+                  {
+                    "fieldName": "total_job_run_duration",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 11,
+                    "title": "total_job_run_duration",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "total_job_run_duration"
+                  },
+                  {
+                    "fieldName": "run_page",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 12,
+                    "title": "run_page",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "run_page"
+                  },
+                  {
+                    "fieldName": "tasks",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "complex",
+                    "displayAs": "json",
+                    "visible": true,
+                    "order": 13,
+                    "title": "tasks",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "tasks"
+                  },
+                  {
+                    "fieldName": "job_run_status_code",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "complex",
+                    "displayAs": "json",
+                    "visible": true,
+                    "order": 14,
+                    "title": "job_run_status_code",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_status_code"
+                  }
+                ]
+              },
+              "invisibleColumns": [
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "database_type",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 100015,
+                  "title": "database_type",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                }
+              ],
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 15,
+              "paginationSize": "default",
+              "condensed": false,
+              "withRowNumber": false,
+              "frame": {
+                "showDescription": false,
+                "showTitle": true,
+                "title": "Recent Job Executions"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 23,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "dc78fbb1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_execution_details",
+                  "fields": [
+                    {
+                      "name": "job_run_execution_duration",
+                      "expression": "`job_run_execution_duration`"
+                    },
+                    {
+                      "name": "workflow_name",
+                      "expression": "`workflow_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "job_run_execution_duration",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "job_run_execution_duration"
+                },
+                "y": {
+                  "fieldName": "workflow_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "workflow_name"
+                }
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 5
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 6
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 8
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 9
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 10
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "321a7ab1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b5b698e1",
+                  "fields": [
+                    {
+                      "name": "workflow_name",
+                      "expression": "`workflow_name`"
+                    },
+                    {
+                      "name": "job_id",
+                      "expression": "`job_id`"
+                    },
+                    {
+                      "name": "job_run_id",
+                      "expression": "`job_run_id`"
+                    },
+                    {
+                      "name": "start_time_job",
+                      "expression": "`start_time_job`"
+                    },
+                    {
+                      "name": "end_time_job",
+                      "expression": "`end_time_job`"
+                    },
+                    {
+                      "name": "cluster_step_up_duration",
+                      "expression": "`cluster_step_up_duration`"
+                    },
+                    {
+                      "name": "job_run_execution_duration",
+                      "expression": "`job_run_execution_duration`"
+                    },
+                    {
+                      "name": "total_job_run_duration",
+                      "expression": "`total_job_run_duration`"
+                    },
+                    {
+                      "name": "run_page",
+                      "expression": "`run_page`"
+                    },
+                    {
+                      "name": "tasks",
+                      "expression": "`tasks`"
+                    },
+                    {
+                      "name": "job_run_status",
+                      "expression": "`job_run_status`"
+                    },
+                    {
+                      "name": "job_run_status_code",
+                      "expression": "`job_run_status_code`"
+                    },
+                    {
+                      "name": "job_run_status_message",
+                      "expression": "`job_run_status_message`"
+                    },
+                    {
+                      "name": "insert_time",
+                      "expression": "`insert_time`"
+                    },
+                    {
+                      "name": "source_database_type",
+                      "expression": "`source_database_type`"
+                    },
+                    {
+                      "name": "last_success_end_time",
+                      "expression": "`last_success_end_time`"
+                    },
+                    {
+                      "name": "last_success_duration",
+                      "expression": "`last_success_duration`"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "workflow_name",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "workflow_name",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "workflow_name"
+                  },
+                  {
+                    "fieldName": "job_id",
+                    "numberFormat": "0",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "job_id",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_id"
+                  },
+                  {
+                    "fieldName": "job_run_id",
+                    "numberFormat": "0",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "job_run_id",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_id"
+                  },
+                  {
+                    "fieldName": "start_time_job",
+                    "dateTimeFormat": "DD/MM/YYYY HH:mm:ss.SSS",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "start_time_job",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "start_time_job"
+                  },
+                  {
+                    "fieldName": "end_time_job",
+                    "dateTimeFormat": "DD/MM/YYYY HH:mm:ss.SSS",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "end_time_job",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "end_time_job"
+                  },
+                  {
+                    "fieldName": "cluster_step_up_duration",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100005,
+                    "title": "cluster_step_up_duration",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "cluster_step_up_duration"
+                  },
+                  {
+                    "fieldName": "job_run_execution_duration",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100006,
+                    "title": "job_run_execution_duration",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_execution_duration"
+                  },
+                  {
+                    "fieldName": "total_job_run_duration",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100007,
+                    "title": "total_job_run_duration",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "total_job_run_duration"
+                  },
+                  {
+                    "fieldName": "run_page",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100008,
+                    "title": "run_page",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "run_page"
+                  },
+                  {
+                    "fieldName": "tasks",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "complex",
+                    "displayAs": "json",
+                    "visible": true,
+                    "order": 100009,
+                    "title": "tasks",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "tasks"
+                  },
+                  {
+                    "fieldName": "job_run_status",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "complex",
+                    "displayAs": "json",
+                    "visible": true,
+                    "order": 100010,
+                    "title": "job_run_status",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_status"
+                  },
+                  {
+                    "fieldName": "job_run_status_code",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "complex",
+                    "displayAs": "json",
+                    "visible": true,
+                    "order": 100011,
+                    "title": "job_run_status_code",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_status_code"
+                  },
+                  {
+                    "fieldName": "job_run_status_message",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100012,
+                    "title": "job_run_status_message",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "job_run_status_message"
+                  },
+                  {
+                    "fieldName": "insert_time",
+                    "dateTimeFormat": "DD/MM/YYYY HH:mm:ss.SSS",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100013,
+                    "title": "insert_time",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "insert_time"
+                  },
+                  {
+                    "fieldName": "source_database_type",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100014,
+                    "title": "source_database_type",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "source_database_type"
+                  },
+                  {
+                    "fieldName": "last_success_end_time",
+                    "dateTimeFormat": "DD/MM/YYYY HH:mm:ss.SSS",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100015,
+                    "title": "last_success_end_time",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "last_success_end_time"
+                  },
+                  {
+                    "fieldName": "last_success_duration",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100016,
+                    "title": "last_success_duration",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "last_success_duration"
+                  },
+                  {
+                    "fieldName": "status",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100017,
+                    "title": "status",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "status"
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "paginationSize": "default",
+              "condensed": true,
+              "withRowNumber": false,
+              "frame": {
+                "showTitle": true,
+                "title": "Job Run Analysis and Status Overview "
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ]
+}

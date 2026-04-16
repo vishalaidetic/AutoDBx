@@ -1,0 +1,10 @@
+USERS: sourya.barnwal@aidetic.in,rohan.singh@aidetic.in,praveen.yadav@aidetic.in
+GROUP_NAME: test1      # Add single group only
+TABLE_NAME: poc_catalog.bigquery_migration.autodbx_bq
+PERMISSIONS: select
+FLAG: user
+SCOPE_NAME: AutoDbx
+SECRETS:
+  ACCOUNT_ID: account_id
+  DATABRICKS_ACCOUNT_URL: databricks_account_url
+  ACCOUNT_API_TOKEN: account_api_token
