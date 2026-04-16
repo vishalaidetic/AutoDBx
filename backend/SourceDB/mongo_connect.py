@@ -1,5 +1,10 @@
+import os
+
+from dotenv import load_dotenv
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+
+load_dotenv()
 
 
 def connect_mongodb(uri: str, database_name: str | None = None):
@@ -20,7 +25,7 @@ def connect_mongodb(uri: str, database_name: str | None = None):
         return None
 
 
-def fetch_data_mongodb( 
+def fetch_data_mongodb(
     db_or_client, collection_name: str, query_filter: dict | None = None
 ):
     """
@@ -59,7 +64,7 @@ def close_mongodb_connection(client):
 # Example Usage (you can remove this from the final file if you prefer)
 if __name__ == "__main__":
     # Replace <db_password> with your actual password
-    uri = "mongodb+srv://vishalgaurav293:spartan4666@pro-village.ghcrck5.mongodb.net/?retryWrites=true&w=majority&appName=Pro-village"
+    uri = os.getenv("MONGO_URI")
     database_name = "pro_village"
 
     # Connect to a specific database
