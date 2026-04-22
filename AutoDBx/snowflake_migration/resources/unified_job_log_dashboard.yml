@@ -1,7 +1,0 @@
-resources:
-  dashboards:
-    job_logs_multi_database_dashboard:
-      display_name: "Multi-Database Job database Dashboard - Auto DBX"
-      warehouse_id: ${var.warehouse_id}
-      parent_path: "/Shared/Dashboards"
-      file_path: "../src/job_logs_multi_database_dashboard_definition.json"

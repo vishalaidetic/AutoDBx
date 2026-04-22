@@ -12,22 +12,19 @@ targets:
     mode: production
     default: true
     workspace:
-      host: https://dbc-d03e585a-0b01.cloud.databricks.com
-      root_path: /Shared/AutoDbx/Snowflake/.bundle/
+      # host: https://dbc-d03e585a-0b01.cloud.databricks.com
+      host: https://adb-7405618144348512.12.azuredatabricks.net
+      root_path: /Shared/AutoDbx/Snowflake/17_04_2026/.bundle/
     permissions:
       - group_name: users
         level: CAN_MANAGE
-      - user_name: sourya.barnwal@aidetic.in
-        level: CAN_MANAGE
+      # - user_name: sourya.barnwal@aidetic.in
+      #   level: CAN_MANAGE
       - user_name: rohan.singh@aidetic.in
         level: CAN_MANAGE
-      - user_name: madhumita.prasad@aidetic.in
-        level: CAN_MANAGE
-      - user_name: praveen.yadav@aidetic.in
-        level: CAN_MANAGE
-      - user_name: aman.kumar@aidetic.in
-        level: CAN_MANAGE
       - user_name: abhishek.srinivasan@aidetic.in
+        level: CAN_MANAGE
+      - user_name: vishal.gaurav@aidetic.in
         level: CAN_MANAGE
 
 variables:

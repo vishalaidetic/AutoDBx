@@ -1,12 +1,12 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'; // Added useCallback
-import { ChevronDown, Database, RefreshCw, LayoutList, LayoutGrid, ArrowDown } from 'lucide-react';
+import { ArrowDown, ChevronDown, Database, LayoutGrid, LayoutList, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'; // Added useCallback
+import { toast } from 'react-hot-toast';
 import { fetchDatabricksCatalogs, fetchDatabricksSchemasForCatalog } from '../services/databricksService';
+import { useLoader } from '../services/loader';
 import { Catalog } from '../services/modal';
+
 import TablesFromSchema from './TablesFromSchema';
 import ViewTable from './ViewTable';
-import { useLoader } from '../services/loader';
-import { toast } from 'react-hot-toast';
-import MongoDataViewer from './MongoDataViewer'; // Adjust path
 
 
 // Define Schema type for TypeScript
@@ -74,13 +74,14 @@ export default function DataVisualizationPage() {
       try {
         show('Fetching Databricks catalogs...'); // Show loader with message
         setLoadingDatabricksCatalogs(true);
-        const fetchedCatalogs = await fetchDatabricksCatalogs();
-        setDatabricksCatalogs(fetchedCatalogs);
-        setErrorDatabricksCatalogs(null);
-      } catch (err: any) {
-        const errorMessage = err?.message || 'Failed to fetch Databricks catalogs';
-        setErrorDatabricksCatalogs(errorMessage);
-        toast.error(errorMessage); // Show error toast
+        const { data: fetchedCatalogs, error: fetchError } = await fetchDatabricksCatalogs();
+        if (fetchedCatalogs) {
+          setDatabricksCatalogs(fetchedCatalogs);
+          setErrorDatabricksCatalogs(null);
+        } else {
+          setErrorDatabricksCatalogs(fetchError || 'Failed to fetch Databricks catalogs');
+          toast.error(fetchError || 'Failed to fetch Databricks catalogs');
+        }
       } finally {
         setLoadingDatabricksCatalogs(false);
         hide(); // Hide loader
@@ -139,17 +140,18 @@ export default function DataVisualizationPage() {
       try {
         show(`Fetching schemas for ${provider.name}...`); // Show loader with message
         // Call the function to fetch schemas for the selected catalog
-        const fetchedSchemas = await fetchDatabricksSchemasForCatalog(provider.originalId);
-        setSchemas(fetchedSchemas);
-        setErrorSchemas(null);
-        toast.success(`Loaded ${fetchedSchemas.length} schemas for ${provider.name}`); // Success toast
-        if (fetchedSchemas.length > 0) { // Show arrow if schemas are loaded
+        const { data: fetchedSchemas, error: fetchError } = await fetchDatabricksSchemasForCatalog(provider.originalId);
+        if (fetchedSchemas) {
+          setSchemas(fetchedSchemas);
+          setErrorSchemas(null);
+          toast.success(`Loaded ${fetchedSchemas.length} schemas for ${provider.name}`); // Success toast
+          if (fetchedSchemas.length > 0) { // Show arrow if schemas are loaded
             setShowScrollHint(true);
+          }
+        } else {
+          setErrorSchemas(fetchError || 'Failed to fetch schemas');
+          toast.error(fetchError || 'Failed to fetch schemas');
         }
-      } catch (err: any) {
-        const errorMessage = err?.message || 'Failed to fetch schemas';
-        setErrorSchemas(errorMessage);
-        toast.error(errorMessage); // Show error toast
       } finally {
         setLoadingSchemas(false);
         hide(); // Hide loader
@@ -221,7 +223,7 @@ export default function DataVisualizationPage() {
         {/* Header */}
         <div className="text-center mb-12 transition-all duration-300 ease-in-out">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Databricks <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Visualization</span>
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Databricks</span> Visualization
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
             Select a Catalog to explore and visualize your data.
@@ -317,22 +319,20 @@ export default function DataVisualizationPage() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => setVisualizationMode('card')}
-                      className={`group inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${
-                        visualizationMode === 'card'
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
+                      className={`group inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${visualizationMode === 'card'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
                     >
                       <LayoutGrid className="h-4 w-4 mr-2" />
                       Card View
                     </button>
                     <button
                       onClick={() => setVisualizationMode('table')}
-                      className={`group inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${
-                        visualizationMode === 'table'
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
+                      className={`group inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${visualizationMode === 'table'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
                     >
                       <LayoutList className="h-4 w-4 mr-2" />
                       Table View
@@ -363,9 +363,8 @@ export default function DataVisualizationPage() {
                           <div
                             key={schema.name}
                             onClick={() => handleSchemaClick(schema.name)}
-                            className={`group bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-md transition-all duration-200 hover:-translate-y-1 cursor-pointer ${
-                              selectedSchemaName === schema.name ? 'ring-2 ring-blue-500' : ''
-                            }`}
+                            className={`group bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-md transition-all duration-200 hover:-translate-y-1 cursor-pointer ${selectedSchemaName === schema.name ? 'ring-2 ring-blue-500' : ''
+                              }`}
                           >
                             <div className="flex items-start justify-between mb-3">
                               <h4 className="font-semibold text-gray-900 truncate">{schema.name}</h4>
@@ -393,9 +392,8 @@ export default function DataVisualizationPage() {
                               <tr
                                 key={schema.name}
                                 onClick={() => handleSchemaClick(schema.name)}
-                                className={`cursor-pointer hover:bg-gray-50 ${
-                                  selectedSchemaName === schema.name ? 'bg-blue-50' : ''
-                                }`}
+                                className={`cursor-pointer hover:bg-gray-50 ${selectedSchemaName === schema.name ? 'bg-blue-50' : ''
+                                  }`}
                               >
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{schema.name}</td>
                               </tr>
@@ -436,10 +434,10 @@ export default function DataVisualizationPage() {
 
             {/* Visual cue: Arrow pointing down to tables */}
             {selectedProvider && selectedSchemaName && !loadingSchemas && !selectedTableName && showScrollHint && (
-                <div className="text-center mt-8 animate-bounce transition-opacity duration-500 ease-in-out">
-                    <ArrowDown className="h-10 w-10 text-blue-500 mx-auto" />
-                    <p className="text-gray-600 text-sm mt-2">Scroll down to see tables</p>
-                </div>
+              <div className="text-center mt-8 animate-bounce transition-opacity duration-500 ease-in-out">
+                <ArrowDown className="h-10 w-10 text-blue-500 mx-auto" />
+                <p className="text-gray-600 text-sm mt-2">Scroll down to see tables</p>
+              </div>
             )}
 
             {/* TablesFromSchema renders here, below the schemas section */}
@@ -478,12 +476,7 @@ export default function DataVisualizationPage() {
         )}
       </div>
 
-      {/* MongoDB Data Viewer */}
-      <MongoDataViewer 
-        databaseName="pro_village" 
-        collectionName="users" 
-        // queryFilter={{ age: { $gt: 25 } }} // Example filter
-      />
+
     </div>
   );
 }

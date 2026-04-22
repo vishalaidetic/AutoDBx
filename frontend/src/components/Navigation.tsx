@@ -1,4 +1,4 @@
-import { Home, BarChart3, GitBranch } from 'lucide-react'; // Import GitBranch icon
+import { BarChart3, Database, GitBranch, Home } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Navigation() {
@@ -14,27 +14,25 @@ export default function Navigation() {
             </div>
             <h1 className="text-xl font-bold text-gray-900">AutoDBx</h1>
           </div>
-          
+
           <div className="flex space-x-1">
             <Link
               to="/"
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                location.pathname === '/' 
-                  ? 'bg-blue-100 text-blue-700 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${location.pathname === '/'
+                ? 'bg-blue-100 text-blue-700 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
             >
               <Home className="h-4 w-4" />
               <span>Home</span>
             </Link>
-            
+
             <Link
               to="/visualization"
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                location.pathname === '/visualization'
-                  ? 'bg-blue-100 text-blue-700 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${location.pathname === '/visualization'
+                ? 'bg-blue-100 text-blue-700 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
             >
               <BarChart3 className="h-4 w-4" />
               <span>Visualization</span>
@@ -42,15 +40,25 @@ export default function Navigation() {
 
             {/* New Link for AutoDBx Operations */}
             <Link
-              to="/databricks-operations"
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                location.pathname === '/databricks-operations'
-                  ? 'bg-blue-100 text-blue-700 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              to="/operations"
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${location.pathname === '/operations'
+                ? 'bg-blue-100 text-blue-700 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
             >
               <GitBranch className="h-4 w-4" />
-              <span>AutoDBx Operations</span>
+              <span>Operations</span>
+            </Link>
+
+            <Link
+              to="/aws-view"
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${location.pathname === '/aws-view'
+                ? 'bg-blue-100 text-blue-700 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+            >
+              <Database className="h-4 w-4" />
+              <span>AWS S3 Data</span>
             </Link>
           </div>
         </div>

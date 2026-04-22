@@ -5,14 +5,12 @@ import requests
 from databricks import sql
 from dotenv import load_dotenv
 from fastapi import HTTPException
-from utils.databricks_config_utils import get_databricks_session_config
+from utils.databricks_config_utils import (
+    get_databricks_session_config,
+    store_databricks_config_from_csv,
+)
 
 load_dotenv()
-
-# Remove direct os.getenv calls here, they will be handled by a helper function
-# DATABRICKS_INSTANCE = os.getenv("DATABRICKS_INSTANCE")
-# DATABRICKS_ACCESS_TOKEN = os.getenv("DATABRICKS_ACCESS_TOKEN")
-# DATABRICKS_SQL_WAREHOUSE_ID = os.getenv("DATABRICKS_SQL_WAREHOUSE_ID")
 
 
 def _get_databricks_credential(key: str) -> Optional[str]:
@@ -22,7 +20,7 @@ def _get_databricks_credential(key: str) -> Optional[str]:
     return get_databricks_session_config(key) or os.getenv(key)
 
 
-def get_databricks_catalogs() -> List[str]:
+def get_databricks_catalogs() -> List[Dict[str, Any]]:
     """
     Fetches a list of Unity Catalog catalogs from Databricks.
     """
@@ -42,10 +40,10 @@ def get_databricks_catalogs() -> List[str]:
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     catalogs_data = response.json().get("catalogs", [])
-    return [catalog["name"] for catalog in catalogs_data]
+    return catalogs_data
 
 
-def get_databricks_schemas(catalog_name: str) -> List[str]:
+def get_databricks_schemas(catalog_name: str) -> List[Dict[str, Any]]:
     """
     Fetches schemas for a specified Unity Catalog catalog from Databricks.
     """
@@ -65,10 +63,10 @@ def get_databricks_schemas(catalog_name: str) -> List[str]:
     response = requests.get(url, headers=headers, params=params)
     response.raise_for_status()
     schemas_data = response.json().get("schemas", [])
-    return [schema["name"] for schema in schemas_data]
+    return schemas_data
 
 
-def get_databricks_tables(catalog_name: str, schema_name: str) -> List[str]:
+def get_databricks_tables(catalog_name: str, schema_name: str) -> List[Dict[str, Any]]:
     """
     Fetches tables for a specified Unity Catalog schema within a catalog from Databricks.
     """
@@ -88,7 +86,7 @@ def get_databricks_tables(catalog_name: str, schema_name: str) -> List[str]:
     response = requests.get(url, headers=headers, params=params)
     response.raise_for_status()
     tables_data = response.json().get("tables", [])
-    return [table["name"] for table in tables_data]
+    return tables_data
 
 
 def get_databricks_table_details(
@@ -117,7 +115,7 @@ def get_databricks_table_details(
 
 def get_databricks_table_data(
     catalog_name: str, schema_name: str, table_name: str
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
     Fetches sample data for a specific table using Databricks SQL Warehouse.
     """
@@ -155,4 +153,4 @@ def get_databricks_table_data(
             columns = [desc[0] for desc in cursor.description]
             for row in result:
                 data.append(dict(zip(columns, row)))
-    return data
+    return {"columns": columns, "data": data}

@@ -1,190 +1,173 @@
-import toast from 'react-hot-toast';
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const baseURL = `${API_BASE}/api`;
 
-const BASE_URL = "http://127.0.0.1:8000";
-
-interface ApiResponse {
-    stdout: string;
-    stderr: string;
-    returncode: number;
-    message?: string;
+export interface MigrationCreate {
+    description?: string;
+    source_csv_id?: string;
 }
 
-interface AutodbxFoldersResponse {
-    folders: string[];
-    error?: string;
+export interface StepStatus {
+    status: string;
+    meta_data?: any;
+    start_time?: string;
+    completion_time?: string;
 }
 
-// export const cloneRepository = async (repoUrl: string, baseDir: string, branch: string | null): Promise<ApiResponse> => {
-//     try {
-//         let url = `${BASE_URL}/github/clone?repo_url=${encodeURIComponent(repoUrl)}&base_dir=${encodeURIComponent(baseDir)}`;
-//         if (branch) {
-//             url += `&branch=${encodeURIComponent(branch)}`;
-//         }
+export interface MigrationResponse {
+    id: string;
+    description: string;
+    status: string;
+    source_csv_id: string;
+    validate_bundle: StepStatus;
+    deploy_bundle: StepStatus;
+    config_table: StepStatus;
+    migration_job: StepStatus;
+    created_at: string;
+    updated_at: string;
+}
 
-//         const response = await fetch(url, { method: 'POST' });
-//         const data = await response.json();
+export interface ServiceResponse<T> {
+    data: T | null;
+    error: string | null;
+}
 
-//         if (response.ok) {
-//             toast.success(data.message || 'Repository cloned successfully!');
-//             return { ...data, returncode: 0 };
-//         } else {
-//             let errorMessage: string;
-//             if (typeof data.detail === 'string') {
-//                 errorMessage = data.detail;
-//             } else if (Array.isArray(data.detail) && data.detail.length > 0) {
-//                 errorMessage = data.detail.map((d: any) => d.msg || d).join(', ');
-//             } else {
-//                 errorMessage = data.message || data.stderr || 'Failed to clone repository.';
-//             }
-//             toast.error(errorMessage);
-//             return { ...data, stderr: errorMessage, returncode: response.status };
-//         }
-//     } catch (error: any) {
-//         toast.error(`Error cloning repository: ${error?.message || error}`);
-//         return { stdout: '', stderr: error?.message || String(error), returncode: 1 };
-//     }
-// };
+// --- Migration Service ---
 
-const handleStreamingResponse = async (response: Response, onChunk: (chunk: string) => void): Promise<string> => { // Changed return type to Promise<string> to return full output
-    const reader = response.body?.getReader();
-    if (!reader) {
-        throw new Error("Failed to get reader for streaming response.");
-    }
-
-    let fullOutput = ''; // To collect the full output
-    const decoder = new TextDecoder();
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        fullOutput += chunk;
-        onChunk(chunk);
-    }
-
-    // Check for the specific error message from the backend stream
-    if (fullOutput.includes("ERROR: Command") && fullOutput.includes("failed with exit code 1 in directory")) {
-        throw new Error(`Command execution failed: ${fullOutput.split("ERROR:")[1]?.trim() || "See output console for details."}`);
-    }
-    return fullOutput; // Return full output
-};
-
-export const databricksValidate = async (project_name: string, onChunk: (chunk: string) => void): Promise<void> => {
+export const createMigration = async (data: MigrationCreate): Promise<ServiceResponse<MigrationResponse>> => {
     try {
-        const response = await fetch(`${BASE_URL}/databricks/validate?project_name=${encodeURIComponent(project_name)}`, {
-            method: 'GET',
+        const response = await fetch(`${baseURL}/migrations/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
         });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Validation failed. HTTP error.');
+        const resData = await response.json();
+        if (resData?.success) {
+            return { data: resData?.data, error: null };
+        } else {
+            return { data: null, error: resData?.message || `HTTP ${response.status}` };
         }
-        const output = await handleStreamingResponse(response, onChunk);
-        // If handleStreamingResponse throws, this part won't be reached
-        toast.success('Databricks validation completed!');
     } catch (error: any) {
-        toast.error(`Databricks validation error: ${error.message}`);
-        onChunk(`Error: ${error.message}\n`);
-        throw error; // Re-throw to be caught by handleAction
+        return { data: null, error: error.message };
     }
 };
 
-export const databricksDeploy = async (project_name: string, onChunk: (chunk: string) => void): Promise<void> => {
+export const getMigration = async (id: string): Promise<ServiceResponse<MigrationResponse>> => {
     try {
-        const response = await fetch(`${BASE_URL}/databricks/deploy?project_name=${encodeURIComponent(project_name)}`, {
-            method: 'GET',
+        const response = await fetch(`${baseURL}/migrations/${id}`);
+        const resData = await response.json();
+        if (resData?.success) {
+            return { data: resData?.data, error: null };
+        } else {
+            return { data: null, error: resData?.message || `HTTP ${response.status}` };
+        }
+    } catch (error: any) {
+        return { data: null, error: error.message };
+    }
+};
+
+export const runMigrationStep = async (id: string, stepKey: string, projectName: string): Promise<ServiceResponse<MigrationResponse>> => {
+    try {
+        const response = await fetch(`${baseURL}/migrations/${id}/run/${stepKey}?project_name=${projectName}`, {
+            method: 'POST',
         });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Deployment failed. HTTP error.');
+        const resData = await response.json();
+        if (resData?.success) {
+            return { data: resData?.data, error: null };
+        } else {
+            return { data: null, error: resData?.message || `HTTP ${response.status}` };
         }
-        await handleStreamingResponse(response, onChunk);
-        toast.success('Databricks deployment completed!');
     } catch (error: any) {
-        toast.error(`Databricks deployment error: ${error.message}`);
-        onChunk(`Error: ${error.message}\n`);
-        throw error; // Re-throw to be caught by handleAction
+        return { data: null, error: error.message };
     }
 };
 
-export const databricksRunConfigTable = async (project_name: string, onChunk: (chunk: string) => void): Promise<void> => {
+export const fetchAutodbxFolders = async (): Promise<ServiceResponse<{ folders: string[] }>> => {
     try {
-        const response = await fetch(`${BASE_URL}/databricks/run/config-table?project_name=${encodeURIComponent(project_name)}`, {
-            method: 'GET',
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Config table creation failed. HTTP error.');
+        const response = await fetch(`${baseURL}/migrations/folders`);
+        const resData = await response.json();
+        if (resData?.success) {
+            return { data: resData?.data, error: null };
+        } else {
+            return { data: null, error: resData?.message || `HTTP ${response.status}` };
         }
-        await handleStreamingResponse(response, onChunk);
-        toast.success('Config table creation job started!');
     } catch (error: any) {
-        toast.error(`Config table creation error: ${error.message}\n`);
-        onChunk(`Error: ${error.message}\n`);
-        throw error; // Re-throw to be caught by handleAction
+        return { data: null, error: error.message };
     }
 };
 
-export const databricksRunMigrationJob = async (project_name: string, onChunk: (chunk: string) => void): Promise<void> => {
-    try {
-        const response = await fetch(`${BASE_URL}/databricks/run/migration-job?project_name=${encodeURIComponent(project_name)}`, {
-            method: 'GET',
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Migration job failed. HTTP error.');
-        }
-        await handleStreamingResponse(response, onChunk);
-        toast.success('Migration job started!');
-    } catch (error: any) {
-        toast.error(`Migration job error: ${error.message}`);
-        onChunk(`Error: ${error.message}\n`);
-        throw error; // Re-throw to be caught by handleAction
-    }
-};
+// --- Databricks Service ---
 
-export const fetchAutodbxFolders = async (): Promise<AutodbxFoldersResponse> => {
-    try {
-        const response = await fetch(`${BASE_URL}/autodbx/folders`);
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Failed to fetch AutoDBx folders');
-        }
-        const result: AutodbxFoldersResponse = await response.json();
-        return result;
-    } catch (error: any) {
-        console.error('Error fetching AutoDBx folders:', error);
-        return { folders: [], error: error.message || 'An unknown error occurred' };
-    }
-};
-
-export const uploadDatabricksConfigCsv = async (file: File): Promise<ApiResponse> => {
+export const uploadDatabricksConfigCsv = async (file: File): Promise<ServiceResponse<{ message: string }>> => {
     try {
         const formData = new FormData();
         formData.append('file', file);
-
-        const response = await fetch(`${BASE_URL}/databricks/upload-config`, {
+        const response = await fetch(`${baseURL}/databricks/upload-config`, {
             method: 'POST',
             body: formData,
         });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            toast.success(data.message || 'Databricks configuration uploaded successfully!');
-            return { ...data, returncode: 0 };
+        const resData = await response.json();
+        if (resData?.success) {
+            return { data: resData, error: null };
         } else {
-            let errorMessage: string;
-            if (typeof data.detail === 'string') {
-                errorMessage = data.detail;
-            } else if (Array.isArray(data.detail) && data.detail.length > 0) {
-                errorMessage = data.detail.map((d: any) => d.msg || d).join(', ');
-            } else {
-                errorMessage = data.message || data.stderr || 'Failed to upload Databricks configuration.';
-            }
-            toast.error(errorMessage);
-            return { ...data, stderr: errorMessage, returncode: response.status };
+            return { data: null, error: resData?.message || `HTTP ${response.status}` };
         }
     } catch (error: any) {
-        toast.error(`Error uploading Databricks configuration: ${error?.message || error}`);
-        return { stdout: '', stderr: error?.message || String(error), returncode: 1 };
+        return { data: null, error: error.message };
+    }
+};
+
+export const getDatabricksCatalogs = async (): Promise<ServiceResponse<{ catalogs: any[] }>> => {
+    try {
+        const response = await fetch(`${baseURL}/databricks/catalogs`);
+        const resData = await response.json();
+        if (resData?.success) {
+            return { data: resData?.data, error: null };
+        } else {
+            return { data: null, error: resData?.message || `HTTP ${response.status}` };
+        }
+    } catch (error: any) {
+        return { data: null, error: error.message };
+    }
+};
+
+export const getDatabricksSchemas = async (catalog: string): Promise<ServiceResponse<{ schemas: any[] }>> => {
+    try {
+        const response = await fetch(`${baseURL}/databricks/schemas/${catalog}`);
+        const resData = await response.json();
+        if (resData?.success) {
+            return { data: resData?.data, error: null };
+        } else {
+            return { data: null, error: resData?.message || `HTTP ${response.status}` };
+        }
+    } catch (error: any) {
+        return { data: null, error: error.message };
+    }
+};
+
+export const getDatabricksTables = async (catalog: string, schema: string): Promise<ServiceResponse<{ tables: any[] }>> => {
+    try {
+        const response = await fetch(`${baseURL}/databricks/tables/${catalog}/${schema}`);
+        const resData = await response.json();
+        if (resData?.success) {
+            return { data: resData?.data, error: null };
+        } else {
+            return { data: null, error: resData?.message || `HTTP ${response.status}` };
+        }
+    } catch (error: any) {
+        return { data: null, error: error.message };
+    }
+};
+
+export const getDatabricksTableData = async (catalog: string, schema: string, table: string): Promise<ServiceResponse<{ table_data: any }>> => {
+    try {
+        const response = await fetch(`${baseURL}/databricks/tables/${catalog}/${schema}/${table}/data`);
+        const resData = await response.json();
+        if (resData?.success) {
+            return { data: resData?.data, error: null };
+        } else {
+            return { data: null, error: resData?.message || `HTTP ${response.status}` };
+        }
+    } catch (error: any) {
+        return { data: null, error: error.message };
     }
 };

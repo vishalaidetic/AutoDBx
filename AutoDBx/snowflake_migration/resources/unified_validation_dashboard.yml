@@ -1,7 +1,0 @@
-resources:
-  dashboards:
-    validation_multi_database_dashboard:
-      display_name: "Multi-Database Validation Dashboard - Auto DBX"
-      warehouse_id: ${var.warehouse_id}
-      parent_path: "/Shared/Dashboards"
-      file_path: "../src/validation_multi_database_dashboard_definition.json"

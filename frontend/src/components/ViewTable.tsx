@@ -1,35 +1,9 @@
-import { useState, useEffect } from 'react';
+import { Info, LayoutList, Table } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { fetchDatabricksTableDetails } from '../services/databricksService';
 import { useLoader } from '../services/loader';
-import { toast } from 'react-hot-toast'; // Changed to react-hot-toast for consistency
-import { Table, LayoutList, Info } from 'lucide-react'; // Added icons
-
-interface TableColumn {
-  name: string;
-  type_text?: string;
-  type_name?: string;
-  nullable?: boolean;
-  comment?: string;
-  [key: string]: any;
-}
-
-interface TableDetails {
-  columns: TableColumn[];
-  owner?: string;
-  table_type?: string;
-  comment?: string;
-  created_at?: number;
-  updated_at?: number;
-  full_name?: string;
-  [key: string]: any;
-}
-
-// TableData interface remains unused as data is handled by TableDataPage for full view.
-// interface TableData {
-//   columns: string[];
-//   data: Record<string, any>[];
-//   [key: string]: any;
-// }
+import { DatabricksTableDetails, DatabricksTableDetailsColumn } from '../services/modal';
 
 interface ViewTableProps {
   catalogName: string;
@@ -37,7 +11,6 @@ interface ViewTableProps {
   tableName: string;
   onOpenTableDataInNewPage: (catalogName: string, schemaName: string, tableName: string) => void;
   hideColumnsSection?: boolean;
-  onToggleDataView?: (show: boolean) => void; // This prop seems unused for now, keeping for potential future use
 }
 
 export default function ViewTable({
@@ -45,9 +18,9 @@ export default function ViewTable({
   schemaName,
   tableName,
   onOpenTableDataInNewPage,
-  hideColumnsSection = false, // Default to false if not provided
+  hideColumnsSection = false,
 }: ViewTableProps) {
-  const [tableDetails, setTableDetails] = useState<TableDetails | null>(null);
+  const [tableDetails, setTableDetails] = useState<DatabricksTableDetails | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,14 +35,19 @@ export default function ViewTable({
       setTableDetails(null);
 
       try {
-        const fetchedDetails: any = await fetchDatabricksTableDetails(
+        const { data: fetchedDetails, error: fetchError } = await fetchDatabricksTableDetails(
           catalogName,
           schemaName,
           tableName
         );
         if (isMounted) {
-          setTableDetails(fetchedDetails);
-          toast.success(`Details loaded for table: ${tableName}`);
+          if (fetchedDetails) {
+            setTableDetails(fetchedDetails);
+            toast.success(`Details loaded for table: ${tableName}`);
+          } else {
+            setError(fetchError || 'Failed to fetch table details');
+            toast.error(fetchError || 'Failed to fetch table details');
+          }
         }
       } catch (err: any) {
         if (isMounted) {
@@ -95,7 +73,6 @@ export default function ViewTable({
     };
   }, [catalogName, schemaName, tableName, show, hide]);
 
-  // Helper function to format Unix timestamp to Indian date-time format
   const formatIndianDateTime = (timestamp: number | undefined): string => {
     if (!timestamp) return 'N/A';
     const date = new Date(timestamp);
@@ -201,7 +178,7 @@ export default function ViewTable({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {columns.map((column: TableColumn, index: number) => (
+                  {columns.map((column: DatabricksTableDetailsColumn, index: number) => (
                     <tr key={column.name || index} className="hover:bg-gray-50 transition-colors duration-150">
                       <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
                         {column.name || 'N/A'}

@@ -35,11 +35,10 @@ export default function HomePage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              DataBricks Visualization
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Platform</span>
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> AutoDBx</span> Platform
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Transform your raw data into meaningful insights with our powerful visualization platform. 
+              Transform your raw data into meaningful insights with our powerful visualization platform.
               Connect multiple data sources and create stunning visual representations of your data.
             </p>
             
@@ -55,7 +54,7 @@ export default function HomePage() {
                 onClick={() => navigate('/databricks-operations')}
                 className="group inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-700 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl hover:bg-white hover:shadow-md transition-all duration-200 transform hover:scale-105"
               >
-                Autodbx Operations
+                Operations
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>

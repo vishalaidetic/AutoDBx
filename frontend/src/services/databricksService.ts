@@ -1,136 +1,111 @@
-import { Catalog, Schema, DatabricksTable, DatabricksTableDetails, DatabricksTableDataResponse} from './modal';
-  
-export async function fetchDatabricksCatalogs(): Promise<Catalog[]> {
-    try {
-    //   }
-      const response = await fetch(`http://127.0.0.1:8000/databricks/catalogs`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      return data.catalogs.catalogs; // Access the nested 'catalogs' array
-    } catch (error) {
-      console.error("Error fetching Databricks catalogs:", error);
-      return [];
+import { Catalog, DatabricksTable, DatabricksTableDataResponse, DatabricksTableDetails, Schema } from './modal';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+const baseURL = `${API_BASE}/api/databricks`;
+
+export interface ServiceResponse<T> {
+  data: T | null;
+  error: string | null;
+}
+
+export const fetchDatabricksCatalogs = async (): Promise<ServiceResponse<Catalog[]>> => {
+  try {
+    const response = await fetch(`${baseURL}/catalogs`);
+    const resData = await response.json();
+    if (resData?.success) {
+      return { data: resData?.data?.catalogs || [], error: null };
+    } else {
+      return { data: null, error: resData?.message || `HTTP ${response.status}` };
     }
+  } catch (error: any) {
+    return { data: null, error: error.message };
   }
-  
-  
-// New function to fetch Databricks Schemas for a given catalog
-export async function fetchDatabricksSchemasForCatalog(catalogName: string): Promise<Schema[]> {
-    try {
-      const response = await fetch(`http://127.0.0.1:8000/databricks/schemas/${catalogName}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      return data.schemas.schemas; // Access the nested 'schemas' array
-    } catch (error) {
-      console.error(`Error fetching Databricks schemas for catalog ${catalogName}:`, error);
-      return [];
+}
+
+export const fetchDatabricksSchemasForCatalog = async (catalogName: string): Promise<ServiceResponse<Schema[]>> => {
+  try {
+    const response = await fetch(`${baseURL}/schemas/${catalogName}`);
+    const resData = await response.json();
+    if (resData?.success) {
+      return { data: resData?.data?.schemas || [], error: null };
+    } else {
+      return { data: null, error: resData?.message || `HTTP ${response.status}` };
     }
+  } catch (error: any) {
+    return { data: null, error: error.message };
   }
+}
 
-// Service to fetch Databricks tables for a given catalog and schema
-export async function fetchDatabricksTablesForSchema(
-    catalogName: string,
-    schemaName: string
-  ): Promise<DatabricksTable[]> {
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/databricks/tables/${encodeURIComponent(catalogName)}/${encodeURIComponent(schemaName)}`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-
-      let tables: any = [];
-
-      if (Array.isArray(data?.tables)) {
-        tables = data.tables;
-      } else if (data?.tables && Array.isArray(data.tables.tables)) {
-        tables = data.tables.tables;
-      } else {
-        tables = [];
-      }
-
-      // Defensive: ensure each table is an object
-      if (!Array.isArray(tables)) {
-        tables = [];
-      }
-
-      return tables;
-    } catch (error) {
-      console.error(
-        `Error fetching Databricks tables for catalog ${catalogName}, schema ${schemaName}:`,
-        error
-      );
-      return [];
+export const fetchDatabricksTablesForSchema = async (
+  catalogName: string,
+  schemaName: string
+): Promise<ServiceResponse<DatabricksTable[]>> => {
+  try {
+    const response = await fetch(`${baseURL}/tables/${encodeURIComponent(catalogName)}/${encodeURIComponent(schemaName)}`);
+    const resData = await response.json();
+    if (resData?.success) {
+      return { data: resData?.data?.tables || [], error: null };
+    } else {
+      return { data: null, error: resData?.message || `HTTP ${response.status}` };
     }
+  } catch (error: any) {
+    return { data: null, error: error.message };
   }
+}
 
-// Service to fetch Databricks table details for a given catalog, schema, and table
-export async function fetchDatabricksTableDetails(
-    catalogName: string,
-    schemaName: string,
-    tableName: string
-  ): Promise<DatabricksTableDetails | null> {
-    try {
-      const url = `http://127.0.0.1:8000/databricks/tables/${encodeURIComponent(
-        catalogName
-      )}/${encodeURIComponent(schemaName)}/${encodeURIComponent(tableName)}/details`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      // The backend returns { table_details: {...} }
-      // Defensive: ensure we return an object or null, and allow for missing fields
-      if (data && typeof data.table_details === 'object' && data.table_details !== null) {
-        return data.table_details as DatabricksTableDetails;
-      }
-      return null;
-    } catch (error) {
-      console.error(
-        `Error fetching Databricks table details for catalog ${catalogName}, schema ${schemaName}, table ${tableName}:`,
-        error
-      );
-      return null;
+export const fetchDatabricksTableDetails = async (
+  catalogName: string,
+  schemaName: string,
+  tableName: string
+): Promise<ServiceResponse<DatabricksTableDetails>> => {
+  try {
+    const response = await fetch(`${baseURL}/tables/${encodeURIComponent(catalogName)}/${encodeURIComponent(schemaName)}/${encodeURIComponent(tableName)}/details`);
+    const resData = await response.json();
+    if (resData?.success) {
+      return { data: resData?.data?.table_details || null, error: null };
+    } else {
+      return { data: null, error: resData?.message || `HTTP ${response.status}` };
     }
+  } catch (error: any) {
+    return { data: null, error: error.message };
   }
+}
 
-export async function fetchDatabricksTableData(
-    catalogName: string,
-    schemaName: string,
-    tableName: string
-  ): Promise<DatabricksTableDataResponse | null> {
-    try {
-      const url = `http://127.0.0.1:8000/databricks/tables/${encodeURIComponent(
-        catalogName
-      )}/${encodeURIComponent(schemaName)}/${encodeURIComponent(tableName)}/data`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      
-      // The backend returns { table_data: { columns: [...], data: [...] } }
+export const fetchDatabricksTableData = async (
+  catalogName: string,
+  schemaName: string,
+  tableName: string
+): Promise<ServiceResponse<DatabricksTableDataResponse>> => {
+  try {
+    const response = await fetch(`${baseURL}/tables/${encodeURIComponent(catalogName)}/${encodeURIComponent(schemaName)}/${encodeURIComponent(tableName)}/data`);
+    const resData = await response.json();
+    if (resData?.success) {
+      const rawData = resData?.data?.table_data;
+
+      // 1. New format: { columns: [...], data: [...] }
       if (
-        data &&
-        typeof data.table_data === 'object' &&
-        data.table_data !== null &&
-        Array.isArray(data.table_data.columns) &&
-        Array.isArray(data.table_data.data)
+        rawData &&
+        typeof rawData === 'object' &&
+        !Array.isArray(rawData) &&
+        Array.isArray(rawData.columns) &&
+        Array.isArray(rawData.data)
       ) {
-        return data.table_data as DatabricksTableDataResponse;
+        return { data: rawData as DatabricksTableDataResponse, error: null };
       }
-      return null;
-    } catch (error) {
-      console.error(
-        `Error fetching Databricks table data for catalog ${catalogName}, schema ${schemaName}, table ${tableName}:`,
-        error
-      );
-      return null;
+
+      // 2. Legacy format: [ {col1: val, col2: val}, ... ]
+      if (Array.isArray(rawData)) {
+        const columns = rawData.length > 0 ? Object.keys(rawData[0]) : [];
+        return {
+          data: { columns, data: rawData },
+          error: null
+        };
+      }
+      return { data: null, error: "Unexpected table data format" };
+    } else {
+      return { data: null, error: resData?.message || `HTTP ${response.status}` };
     }
+  } catch (error: any) {
+    return { data: null, error: error.message };
   }
+}

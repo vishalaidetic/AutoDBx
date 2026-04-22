@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import { fetchDatabricksTablesForSchema } from '../services/databricksService';
-import {DatabricksTable} from '../services/modal'
 import { ChevronDown, Table2 } from 'lucide-react';
-import { useLoader } from '../services/loader';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { fetchDatabricksTablesForSchema } from '../services/databricksService';
+import { useLoader } from '../services/loader';
+import { DatabricksTable } from '../services/modal';
 
 interface TablesFromSchemaProps {
   catalogName: string;
@@ -42,10 +42,16 @@ export default function TablesFromSchema({ catalogName, schemaName, onTableClick
       setTables([]);
       setDisplayedCount(10);
       try {
-        const fetchedTables = await fetchDatabricksTablesForSchema(catalogName, schemaName);
+        const { data: fetchedTables, error: fetchError } = await fetchDatabricksTablesForSchema(catalogName, schemaName);
         if (isMounted) {
-          setTables(Array.isArray(fetchedTables) ? fetchedTables : []);
-          toast.success(`Loaded ${fetchedTables.length} tables for ${schemaName}`);
+          if (fetchedTables) {
+            setTables(Array.isArray(fetchedTables) ? fetchedTables : []);
+            toast.success(`Loaded ${fetchedTables.length} tables for ${schemaName}`);
+          } else {
+            setError(fetchError || 'Failed to fetch tables');
+            setTables([]);
+            toast.error(fetchError || 'Failed to fetch tables');
+          }
         }
       } catch (err: any) {
         if (isMounted) {

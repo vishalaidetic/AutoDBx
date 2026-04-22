@@ -8,3 +8,9 @@ psycopg2-binary
 pymongo
 pydantic
 python-multipart
+boto3
+pandas
+openpyxl
+sqlalchemy
+alembic
+websockets

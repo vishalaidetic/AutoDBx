@@ -1,8 +1,0 @@
-# resources/data_quality_multi_database_dashboard.yml
-resources:
-  dashboards:
-    data_quality_multi_database_dashboard:
-      display_name: "Multi-Database Data Quality Dashboard - Auto DBX"
-      warehouse_id: ${var.warehouse_id}
-      parent_path: "/Shared/Dashboards"
-      file_path: "../src/data_quality_multi_database_dashboard_definition.json"

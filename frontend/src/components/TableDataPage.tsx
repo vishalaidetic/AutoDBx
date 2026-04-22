@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { Database, Table, Terminal } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
 import { fetchDatabricksTableData } from '../services/databricksService';
-import { Terminal, Database, Table } from 'lucide-react';
 import { useLoader } from '../services/loader';
-import { toast } from 'react-hot-toast';
 
 interface TableDataResponse {
   columns: string[];
@@ -34,14 +34,19 @@ export default function TableDataPage() {
       }
 
       try {
-        const fetchedData = await fetchDatabricksTableData(
+        const { data: fetchedData, error: fetchError } = await fetchDatabricksTableData(
           decodeURIComponent(catalogName),
           decodeURIComponent(schemaName),
           decodeURIComponent(tableName)
         );
         if (isMounted) {
-          setTableData(fetchedData);
-          toast.success(`Data loaded for table: ${decodeURIComponent(tableName)}`);
+          if (fetchedData) {
+            setTableData(fetchedData);
+            toast.success(`Data loaded for table: ${decodeURIComponent(tableName)}`);
+          } else {
+            setError(fetchError || 'Failed to fetch table data');
+            toast.error(fetchError || 'Failed to fetch table data');
+          }
         }
       } catch (err: any) {
         if (isMounted) {

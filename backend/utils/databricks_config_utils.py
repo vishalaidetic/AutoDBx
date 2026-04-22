@@ -3,10 +3,6 @@ from typing import Dict, Optional
 
 import pandas as pd
 
-# In-memory store for Databricks credentials for the current session
-# This is a simplified approach for demonstration.
-# For a production environment, consider more robust session management
-# or a secure, temporary storage solution.
 _databricks_session_configs: Dict[str, str] = {}
 
 
